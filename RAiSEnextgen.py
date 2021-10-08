@@ -113,7 +113,7 @@ class Colors:
 
 
 ## Define main function to run RAiSE HD
-def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=4./3, lorentz_min=Lorentzmin, brightness=True, angle=0., resolution='standard', seed=None, aj_star=0.23, crit_mach=1., jet_angle=0.58):
+def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=4./3, lorentz_min=Lorentzmin, brightness=True, angle=0., resolution='standard', seed=None, aj_star=0.24, crit_mach=1., jet_angle=0.51):
     
     # record start time of code
     start_time = ti.time()
@@ -322,7 +322,7 @@ def __set_seed(value):
 
 ## Define functions for analytic modelling of the environment
 # function to calculate properties of the environment and call RAiSE_evolution
-def __RAiSE_environment(redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., gammaCValue=4./3, aj_star=0.23, crit_mach=1., jet_angle=0.58):
+def __RAiSE_environment(redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., gammaCValue=4./3, aj_star=0.24, crit_mach=1., jet_angle=0.51):
     
     # check minimal inputs
     if halo_mass == None and (not isinstance(betas, (list, np.ndarray)) or not isinstance(regions, (list, np.ndarray))):
@@ -525,7 +525,7 @@ def __dHalogasfracFunction(halo_mass, redshift):
 
 ## Define functions required for RAiSE dynamical evolution
 # function to calculate dynamical evolution of lobe and shocked shell
-def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, betas, regions, kValues, temperature, jet_lorentz, aj_star=0.23, crit_mach=1., jet_angle=0.58):
+def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, betas, regions, kValues, temperature, jet_lorentz, aj_star=0.24, crit_mach=1., jet_angle=0.51):
     
     # convert jet power and source age to correct units
     QavgValue = 10**jet_power/2. # set the power of *each* jet; convert from log space
@@ -805,38 +805,31 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, jet_lorentz, open_angle, an
     if jet_lorentz > 1:
         # calculate total mass of particles from the jet
         particle_mass = QavgValue*np.minimum(active_age, X[0,0])/((jet_lorentz - 1)*c_speed**2)
+        #f[0,5] = QavgValue*active_jet/((jet_lorentz - 1)*c_speed**2)*(bulk_velocity - X[0,2])/bulk_velocity
+        #particle_mass = X[0,5]
         
         # calculate volume occupied by particles expanding at speed of light and at sound speed; i.e. maximum distance reached and volume of lobe particles only
-        jet_sound = c_speed #c_speed*np.sqrt(gammaJ - 1)
+        jet_sound = c_speed*np.sqrt(gammaJ - 1)
         lobe_volume = particle_mass/(pressure/c_speed**2) # mass / density
         particle_volume = particle_mass/(pressure/jet_sound**2) # mass / density
-
-        # calculate volume averaged fraction of lobe particles
-        #f[angles,5] = 3*X[angles,1]**2*X[angles,2]*dchi[angles] * lambda_crit
-        #lambda_avg = np.sum(X[angles,5])/np.sum(volume)
         
         # find axis ratio for an ellipsoidal lobe
         P[0,0] = X[0,1]/shockRadius
-        if particle_volume > 0:
-            lobe_axis_ratio = np.minimum(np.sqrt(2*np.pi*P[0,0]**3/(3*particle_volume)), 1/np.tan(open_angle))
-            particle_axis_ratio = np.minimum(np.sqrt(2*np.pi*P[0,0]**3/(3*particle_volume)), 1/np.tan(open_angle))
+        if lobe_volume > 0:
+            lobe_axis_ratio = np.minimum(np.sqrt(2*np.pi*P[0,0]**3/(3*lobe_volume)), 1/np.tan(open_angle))
         else:
             lobe_axis_ratio = 1/np.tan(open_angle)
-            particle_axis_ratio = 1/np.tan(open_angle)
 
         # calculate geometry of each angular volume element
         dtheta = (np.pi/2)/len(angles)
         theta = dtheta*(angles + 0.5)
         lobe_eta_c = 1./np.sqrt(lobe_axis_ratio**2*(np.sin(theta))**2 + (np.cos(theta))**2)
-        particle_eta_c = 1./np.sqrt(particle_axis_ratio**2*(np.sin(theta))**2 + (np.cos(theta))**2)
-        
-        # set length of lobe along each angular volume element, and length of equivalent volume if occupied by lobe particle with filling factor = 1
+        # set length of lobe along each angular volume element
         P[angles[1:],0] = np.minimum(lobe_eta_c[angles[1:]]*P[0,0], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]]))
-        particle_lengths = np.zeros_like(P[:,0])
-        particle_lengths[0], particle_lengths[angles[1:]] = X[0,1]/shockRadius, np.minimum(particle_eta_c[angles[1:]]*P[0,0], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]]))
 
         # calculate modified lambda_crit due to partial filling factor
-        P[0,3] = P[0,3]*np.sum(particle_lengths[angles]*dchi[angles])/np.sum(P[angles,0]*dchi[angles])
+        if lobe_volume > 0:
+            P[0,3] = P[0,3]*np.minimum(particle_volume, np.sum(volume*eta_c/(shockRadius*eta_s)))/np.minimum(lobe_volume, np.sum(volume*eta_c/(shockRadius*eta_s))) * (c_speed/jet_sound)
     else:
         # set length of lobe along each angular volume element
         P[0,0], P[angles[1:],0] = X[0,1]/shockRadius, X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])
@@ -955,6 +948,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
             
             # RELATIVISTIC BEAMING
             doppler_factor = np.sqrt(np.maximum(1e-6, 1 - vx3[:,timePointer[j]]**2))**(3 - (s_index - 1)/2.) # Doppler boosting of particles in jet; 1e-6 ensures some very low level emission
+            doppler_factor[np.logical_and(np.abs(x3[:,timePointer[j]])/major[timePointer[j]] < 0.1, np.logical_and(np.abs(x1[:,timePointer[j]])/major[timePointer[j]] < 0.01, np.abs(x2[:,timePointer[j]])/major[timePointer[j]] < 0.01))] = 0 # completely remove very bright particles clumped at start of jet
             
             # LOBE PARTICLES
             # find angle and radius of each particle from core
