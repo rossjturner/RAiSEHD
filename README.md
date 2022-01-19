@@ -1,8 +1,7 @@
 # RAiSE HD: Lagrangian particle-based radio AGN model
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5499909.svg)](https://doi.org/10.5281/zenodo.5499909)
 
-Radio AGN in Semi-Analytic Environments
-Analytic model for the expansion and evolution .
+_Radio AGN in Semi-Analytic Environments_ (RAiSE) model for the expansion and evolution of the jets and lobes emanating from extraglactic supermassive black holes.
 
 ## Installation
 
