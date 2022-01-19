@@ -30,7 +30,7 @@ python setup.py install
 
 ## Documentation and Examples
 
-Full documentation of the functions included in the RAiSE HD package, in addition to worked examples, is included in [RAiSEHD_user.pdf](https://github.com/rossjturner/seismic_attributes/blob/main/RAiSE_HD_user.pdf) on the GitHub repository. The worked examples are additionally included in the following Jupyter notebook: [RAiSE_HD_example.ipynb](https://github.com/rossjturner/seismic_attributes/blob/main/RAiSEHD_example.ipynb).
+Full documentation of the functions included in the RAiSE HD package, in addition to worked examples, is included in [RAiSEHD_user.pdf](https://github.com/rossjturner/seismic_attributes/blob/main/RAiSEHD_user.pdf) on the GitHub repository. The worked examples are additionally included in the following Jupyter notebook: [RAiSEHD_example.ipynb](https://github.com/rossjturner/seismic_attributes/blob/main/RAiSEHD_example.ipynb).
 
 ## Contact
 
