@@ -1,7 +1,7 @@
 # RAiSE HD: Lagrangian particle-based radio AGN model
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5499909.svg)](https://doi.org/10.5281/zenodo.5499909)
 
-_Radio AGN in Semi-Analytic Environments_ (RAiSE) model for the expansion and evolution of the jets and lobes emanating from extraglactic supermassive black holes. The present release is the RAiSE HD (hydrodynamics) model which adapts Lagrangian particles from a single hydrodynamical simulation to the dynamics of the analytical theory to yield a physically-based magnetic field structure on both large and local scales.
+_Radio AGN in Semi-Analytic Environments_ (RAiSE) model for the expansion and evolution of the jets and lobes emanating from extraglactic supermassive black holes. The RAiSE _HD_ (hydrodynamics) version of this model adapts Lagrangian particles from a hydrodynamical simulation to the dynamics from the analytical theory, yielding a physically-based magnetic field structure on both large and local scales.
 
 ## Installation
 
