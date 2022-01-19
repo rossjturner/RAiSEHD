@@ -8,7 +8,7 @@ _Radio AGN in Semi-Analytic Environments_ (RAiSE) model for the expansion and ev
 This package can either be installed using _pip_ or from a .zip file downloaded from the GitHub repository using the standard Python package _distutils_.
 
 ### Install using pip
-The following command will install the latest version of the _RAiSE_ library from the Python Packaging Index (PyPI):
+The following command will install the latest version of the _RAiSE_ code from the Python Packaging Index (PyPI):
 
 ```bash
 pip install RAiSE
