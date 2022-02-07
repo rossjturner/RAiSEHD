@@ -3,7 +3,6 @@
 
 # import packages
 import h5py
-import hdf5plugin
 import numpy as np
 import pandas as pd
 import time as ti
@@ -870,24 +869,24 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, fill_factor, jet_lorentz, o
 def __PLUTO_particles(particle_data_path):
         
     # unpack particle data from hydrodynamical simulations
-    particle_dict = h5py.File(particle_data_path, 'r')
+    particle_dict = h5py.File(os.path.join(os.path.dirname(os.path.realpath(__file__)), particle_data_path), 'r')
     
     # store variables at desired resolution
-    time = particle_dict['time'][:]
-    shock_time = particle_dict['tinject'][:,:]
-    major = particle_dict['major'][:]
-    minor = particle_dict['minor'][:]
-    x1 = particle_dict['x1'][:,:]
-    x2 = particle_dict['x2'][:,:]
-    x3 = particle_dict['x3'][:,:]
-    tracer = particle_dict['tracer'][:,:]
-    vx3 = particle_dict['vx3'][:,:]
-    volume = particle_dict['volume'][:,:]
-    pressure = particle_dict['pressure'][:,:]
-    press_minor = particle_dict['pressminor'][:]
-    alphaP_hyd = particle_dict['alphaP'][:,:]
-    alphaP_henv = particle_dict['alphaPenv'][:,:]
-    hotspot_ratio = particle_dict['hotspotratio'][:]
+    time = particle_dict['time'][:].astype(np.float32)
+    shock_time = particle_dict['tinject'][:,:].astype(np.float32)
+    major = particle_dict['major'][:].astype(np.float32)
+    minor = particle_dict['minor'][:].astype(np.float32)
+    x1 = particle_dict['x1'][:,:].astype(np.float32)
+    x2 = particle_dict['x2'][:,:].astype(np.float32)
+    x3 = particle_dict['x3'][:,:].astype(np.float32)
+    tracer = particle_dict['tracer'][:,:].astype(np.float32)
+    vx3 = particle_dict['vx3'][:,:].astype(np.float32)
+    volume = particle_dict['volume'][:,:].astype(np.float32)
+    pressure = particle_dict['pressure'][:,:].astype(np.float32)
+    press_minor = particle_dict['pressminor'][:].astype(np.float32)
+    alphaP_hyd = particle_dict['alphaP'][:,:].astype(np.float32)
+    alphaP_henv = particle_dict['alphaPenv'][:,:].astype(np.float32)
+    hotspot_ratio = particle_dict['hotspotratio'][:].astype(np.float32)
 
     return time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio
     
