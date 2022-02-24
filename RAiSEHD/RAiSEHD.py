@@ -234,7 +234,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if not isinstance(frequency, (list, np.ndarray)):
         frequency = [frequency]
     for i in range(0, len(frequency)):
-        if not isinstance(frequency[i], (int, long, float)):
+        if not isinstance(frequency[i], (int, float)):
             raise Exception('Frequency must be provided as a float or list/array of floats in units of log10 Hertz.')
         else:
             if frequency[i] <= 0:
@@ -246,43 +246,45 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if not isinstance(redshift, (list, np.ndarray)):
         redshift = [redshift]
     for i in range(0, len(redshift)):
-        if not isinstance(redshift[i], (int, long, float)) or not (0 < redshift[i] and redshift[i] < 20):
+        if not isinstance(redshift[i], (int, float)) or not (0 < redshift[i] and redshift[i] < 20):
             raise Exception('Redshift must be provided as a float or list/array of floats.')
             
     if not isinstance(axis_ratio, (list, np.ndarray)):
         axis_ratio = [axis_ratio]
     for i in range(0, len(axis_ratio)):
-        if not isinstance(axis_ratio[i], (int, long, float)) or not (1 <= axis_ratio[i] and axis_ratio[i] < 20):
+        if not isinstance(axis_ratio[i], (int, float)) or not (1 <= axis_ratio[i] and axis_ratio[i] < 20):
             raise Exception('Axis ratio must be provided as a float or list/array of floats and be greater than 1.')
             
     if not isinstance(jet_power, (list, np.ndarray)):
         jet_power = [jet_power]
     for i in range(0, len(jet_power)):
-        if not isinstance(jet_power[i], (int, long, float)) or not (33 < jet_power[i] and jet_power[i] < 46):
+        if not isinstance(jet_power[i], (int, float)) or not (33 < jet_power[i] and jet_power[i] < 46):
             raise Exception('Jet power must be provided as a float or list/array of floats in units of log10 Watts.')
             
     if not isinstance(source_age, (list, np.ndarray)):
         source_age = [source_age]
     for i in range(0, len(source_age)):
-        if not isinstance(source_age[i], (int, long, float)) or not (0 <= source_age[i] and source_age[i] <= 10.14):
+        if not isinstance(source_age[i], (int, float)) or not (0 <= source_age[i] and source_age[i] <= 10.14):
             raise Exception('Source age must be provided as a float or list/array of floats in units of log10 years.')
+        else:
+            source_age[i] = float(source_age[i])
     
     if not isinstance(active_age, (list, np.ndarray)):
         active_age = [active_age]
     for i in range(0, len(active_age)):
-        if not isinstance(active_age[i], (int, long, float)) or not (0 <= active_age[i] and active_age[i] <= 10.14):
+        if not isinstance(active_age[i], (int, float)) or not (0 <= active_age[i] and active_age[i] <= 10.14):
             raise Exception('Active age must be provided as a float or list/array of floats in units of log10 years.')
     
     if not isinstance(equipartition, (list, np.ndarray)):
         equipartition = [equipartition]
     for i in range(0, len(equipartition)):
-        if not isinstance(equipartition[i], (int, long, float)) or not (-6 < equipartition[i] and equipartition[i] < 6):
+        if not isinstance(equipartition[i], (int, float)) or not (-6 < equipartition[i] and equipartition[i] < 6):
             raise Exception('Equipartition factor must be provided as a float or list/array of floats in units of log10.')
             
     if not isinstance(jet_lorentz, (list, np.ndarray)):
         jet_lorentz = [jet_lorentz]
     for i in range(0, len(jet_lorentz)):
-        if not isinstance(jet_lorentz[i], (int, long, float)) or not (-100 <= jet_lorentz[i] and jet_lorentz[i] < 20):
+        if not isinstance(jet_lorentz[i], (int, float)) or not (-100 <= jet_lorentz[i] and jet_lorentz[i] < 20):
             raise Exception('Jet bulk lorentz factor factor must be provided as a float or list/array of floats.')
         elif (-100 <= jet_lorentz[i] and jet_lorentz[i] <= 1):
             jet_lorentz[i] = 0
@@ -296,7 +298,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
         nenvirons_halo = len(halo_mass)
     if isinstance(halo_mass, (list, np.ndarray)):
         for i in range(0, len(halo_mass)):
-            if not isinstance(halo_mass[i], (int, long, float)) or not (9 < halo_mass[i] and halo_mass[i] < 17):
+            if not isinstance(halo_mass[i], (int, float)) or not (9 < halo_mass[i] and halo_mass[i] < 17):
                 raise Exception('Dark matter halo mass must be provided as a float or list/array of floats in units of log10 stellar mass.')
     
     if not isinstance(rho0Value, (list, np.ndarray)) and not rho0Value == None:
@@ -324,10 +326,10 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if isinstance(rho0Value, (list, np.ndarray)):
         nenvirons = nenvirons_rho
         for i in range(0, len(rho0Value)):
-            if not isinstance(rho0Value[i], (int, long, float)) or not (1e-30 < rho0Value[i] and rho0Value[i] < 1e-15):
+            if not isinstance(rho0Value[i], (int, float)) or not (1e-30 < rho0Value[i] and rho0Value[i] < 1e-15):
                 raise Exception('Core gas density must be provided as a float or list/array of floats in units of kg/m^3.')
         for i in range(0, len(temperature)):
-            if not isinstance(temperature[i], (int, long, float)) or not (0 < temperature[i] and temperature[i] < 1e12):
+            if not isinstance(temperature[i], (int, float)) or not (0 < temperature[i] and temperature[i] < 1e12):
                 raise Exception('Gas temperature must be provided as a float or list/array of floats in units of Kelvin.')
     else:
         nenvirons = nenvirons_halo
@@ -587,7 +589,6 @@ def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, g
     else:
         # run code for RAiSE X dynamical model
         lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, _ = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue)
-    print(tFinal,lambda_crit)
 
     return lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda
     
@@ -874,24 +875,24 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
 def __PLUTO_particles(particle_data_path):
         
     # unpack particle data from hydrodynamical simulations
-    particle_dict = h5py.File(particle_data_path, 'r')
+    particle_dict = h5py.File(os.path.join(os.path.dirname(os.path.realpath(__file__)), particle_data_path), 'r')
     
     # store variables at desired resolution
-    time = particle_dict['time'][:]
-    shock_time = particle_dict['tinject'][:,:]
-    major = particle_dict['major'][:]
-    minor = particle_dict['minor'][:]
-    x1 = particle_dict['x1'][:,:]
-    x2 = particle_dict['x2'][:,:]
-    x3 = particle_dict['x3'][:,:]
-    tracer = particle_dict['tracer'][:,:]
-    vx3 = particle_dict['vx3'][:,:]
-    volume = particle_dict['volume'][:,:]
-    pressure = particle_dict['pressure'][:,:]
-    press_minor = particle_dict['pressminor'][:]
-    alphaP_hyd = particle_dict['alphaP'][:,:]
-    alphaP_henv = particle_dict['alphaPenv'][:,:]
-    hotspot_ratio = particle_dict['hotspotratio'][:]
+    time = particle_dict['time'][:].astype(np.float32)
+    shock_time = particle_dict['tinject'][:,:].astype(np.float32)
+    major = particle_dict['major'][:].astype(np.float32)
+    minor = particle_dict['minor'][:].astype(np.float32)
+    x1 = particle_dict['x1'][:,:].astype(np.float32)
+    x2 = particle_dict['x2'][:,:].astype(np.float32)
+    x3 = particle_dict['x3'][:,:].astype(np.float32)
+    tracer = particle_dict['tracer'][:,:].astype(np.float32)
+    vx3 = particle_dict['vx3'][:,:].astype(np.float32)
+    volume = particle_dict['volume'][:,:].astype(np.float32)
+    pressure = particle_dict['pressure'][:,:].astype(np.float32)
+    press_minor = particle_dict['pressminor'][:].astype(np.float32)
+    alphaP_hyd = particle_dict['alphaP'][:,:].astype(np.float32)
+    alphaP_henv = particle_dict['alphaPenv'][:,:].astype(np.float32)
+    hotspot_ratio = particle_dict['hotspotratio'][:].astype(np.float32)
 
     return time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio
     
