@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='RAiSEHD',
-    version='0.0.6',
+    version='0.0.10',
     author = "Ross Turner",
     author_email = "turner.rj@icloud.com",
     description = ("RAiSE HD: Lagrangian particle-based radio AGN model."),
