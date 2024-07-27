@@ -6,10 +6,10 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='RAiSEHD',
-    version='0.0.10',
+    version='0.1',
     author = "Ross Turner",
     author_email = "turner.rj@icloud.com",
-    description = ("RAiSE HD: Lagrangian particle-based radio AGN model."),
+    description = ("RAiSE: simulation-based analytical model of AGN jets and lobes."),
     long_description = long_description,
     long_description_content_type = "text/markdown",
     packages=['RAiSEHD'],
