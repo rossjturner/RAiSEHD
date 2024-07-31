@@ -349,12 +349,6 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
         for i in range(0, len(rho0Value)):
             if not isinstance(rho0Value[i], (int, float)) or not (1e-30 < rho0Value[i] and rho0Value[i] < 1e-10):
                 raise Exception('Core gas density must be provided as a float or list/array of floats in units of kg/m^3.')
-        for i in range(0, len(regions)):
-            if not isinstance(regions[i], (int, float)):
-                raise Exception('Radius of region boundaries must be provided as a float or list/array of floats in units of kpc or metres.')
-            else:
-                if (1e-12 < regions[i] and regions[i] <= 1e6):
-                    regions[i] = regions[i]*const.kpc.value # convert from kpc to metres
         for i in range(0, len(temperature)):
             if not isinstance(temperature[i], (int, float)) or not (0 < temperature[i] and temperature[i] < 1e12):
                 raise Exception('Gas temperature must be provided as a float or list/array of floats in units of Kelvin.')
