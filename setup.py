@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='RAiSEHD',
-    version='0.1',
+    version='0.1.1',
     author = "Ross Turner",
     author_email = "turner.rj@icloud.com",
     description = ("RAiSE: simulation-based analytical model of AGN jets and lobes."),
