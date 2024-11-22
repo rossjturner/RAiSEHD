@@ -312,20 +312,20 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
             warnings.warn('Jet phase will not be included in this simulation.', category=UserWarning)
 
     # convert environment to correct data types
-    if not isinstance(halo_mass, (list, np.ndarray)) and not halo_mass == None:
-        halo_mass = [halo_mass]
+    if isinstance(halo_mass, (list, np.ndarray)):
         nenvirons_halo = len(halo_mass)
-    else:
+    elif not isinstance(halo_mass, (list, np.ndarray)) and not halo_mass == None:
+        halo_mass = [halo_mass]
         nenvirons_halo = len(halo_mass)
     if isinstance(halo_mass, (list, np.ndarray)):
         for i in range(0, len(halo_mass)):
             if not isinstance(halo_mass[i], (int, float)) or not (9 < halo_mass[i] and halo_mass[i] < 17):
                 raise Exception('Dark matter halo mass must be provided as a float or list/array of floats in units of log10 stellar mass.')
     
-    if not isinstance(rho0Value, (list, np.ndarray)) and not rho0Value == None:
-        rho0Value = [rho0Value]
+    if isinstance(rho0Value, (list, np.ndarray)):
         nenvirons_rho = len(rho0Value)
-    else:
+    elif not isinstance(rho0Value, (list, np.ndarray)) and not rho0Value == None:
+        rho0Value = [rho0Value]
         nenvirons_rho = len(rho0Value)
     if isinstance(rho0Value, (list, np.ndarray)):
         if not isinstance(temperature, (list, np.ndarray)) and not temperature == None:
