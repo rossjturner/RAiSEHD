@@ -315,7 +315,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if not isinstance(halo_mass, (list, np.ndarray)) and not halo_mass == None:
         halo_mass = [halo_mass]
         nenvirons_halo = len(halo_mass)
-    elif not halo_mass == None:
+    else:
         nenvirons_halo = len(halo_mass)
     if isinstance(halo_mass, (list, np.ndarray)):
         for i in range(0, len(halo_mass)):
@@ -325,7 +325,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if not isinstance(rho0Value, (list, np.ndarray)) and not rho0Value == None:
         rho0Value = [rho0Value]
         nenvirons_rho = len(rho0Value)
-    elif not rho0Value == None:
+    else:
         nenvirons_rho = len(rho0Value)
     if isinstance(rho0Value, (list, np.ndarray)):
         if not isinstance(temperature, (list, np.ndarray)) and not temperature == None:
