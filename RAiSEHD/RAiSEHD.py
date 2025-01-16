@@ -1,5 +1,5 @@
 # RAiSERHD module
-# Ross Turner, 23 Jul 2024
+# Ross Turner, 15 Jan 2025
 
 # import packages
 import h5py
@@ -35,7 +35,7 @@ mu0 = const.mu0.value # vacuum permeability
 sigma_T = const.sigma_T.value # electron scattering cross-section
 
 # model parameters that can be optimised for efficiency
-nangles = 32 # number of angles to calculate expansion rate along (must be greater than 1)
+nangles = 64 # number of angles to calculate expansion rate along (must be greater than 1)
 betaRegions = 64 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
 stepRatio = 1.02 # ratio to increase time/radius
@@ -180,11 +180,14 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                     location, luminosity, magnetic_field = __RAiSE_emissivity(frequency, redshift[i], time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age[m], equipartition[n], spectral_index, gammaCValue=gammaCValue, lorentz_min=lorentz_min, angle=angle, resolution=resolution)
                                 
                                 # create pandas dataframe for integrated emission
+                                angles = np.arange(0, lobe_angles, 1).astype(np.int_)
+                                dtheta = (np.pi/2)/(lobe_angles - 1)
+                                theta = dtheta*angles
                                 df = pd.DataFrame()
                                 df['Time (yrs)'] = 10**np.asarray(source_age).astype(np.float_)
                                 df['Size (kpc)'] = 2*lobe_lengths[0,:]/const.kpc.value
                                 df['Pressure (Pa)'] = shock_pressures[0,:]
-                                df['Axis Ratio'] = lobe_lengths[0,:]/lobe_lengths[-1,:]
+                                df['Axis Ratio'] = lobe_lengths[0,:]/np.max(lobe_lengths[1:,:]*np.sin(theta[1:,None]) + 1e-256, axis=0)
                                 if not resolution == None:
                                     for q in range(0, len(frequency)):
                                         if frequency[q] > 0:
@@ -279,7 +282,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
     if not isinstance(jet_power, (list, np.ndarray)):
         jet_power = [jet_power]
     for i in range(0, len(jet_power)):
-        if not isinstance(jet_power[i], (int, float)) or not (33 < jet_power[i] and jet_power[i] < 46):
+        if not isinstance(jet_power[i], (int, float)) or not (32 <= jet_power[i] and jet_power[i] <= 45):
             raise Exception('Jet power must be provided as a float or list/array of floats in units of log10 Watts.')
             
     if not isinstance(source_age, (list, np.ndarray)):
@@ -349,6 +352,16 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
         for i in range(0, len(rho0Value)):
             if not isinstance(rho0Value[i], (int, float)) or not (1e-30 < rho0Value[i] and rho0Value[i] < 1e-10):
                 raise Exception('Core gas density must be provided as a float or list/array of floats in units of kg/m^3.')
+        for i in range(0, len(regions)):
+            if not isinstance(regions[i], (list, np.ndarray)):
+                raise Exception('Radius of region boundaries must be provided as a float or list/array of floats in units of kpc or metres.')
+            else:
+                for j in range(0, len(regions[i])):
+                    if not isinstance(regions[i][j], (int, float)):
+                        raise Exception('Radius of region boundaries must be provided as a float or list/array of floats in units of kpc or metres.')
+                    else:
+                        if (1e-12 < regions[i][j] and regions[i][j] <= 1e6):
+                            regions[i][j] = regions[i][j]*const.kpc.value # convert from kpc to metres
         for i in range(0, len(temperature)):
             if not isinstance(temperature[i], (int, float)) or not (0 < temperature[i] and temperature[i] < 1e12):
                 raise Exception('Gas temperature must be provided as a float or list/array of floats in units of Kelvin.')
@@ -634,7 +647,7 @@ def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, g
     else:
         # run code for RAiSE X dynamical model
         lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, _ = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, lobe_angles=lobe_angles, step_ratio=step_ratio)
-
+    
     return lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda
     
 
@@ -664,6 +677,8 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
         bulk_lorentz, bulk_velocity = -1, -1
     
     i = 0
+    dtheta = (np.pi/2)/(len(angles) - 1)
+    theta = dtheta*angles
     for timePointer in range(0, len(source_age)):
         # set initial conditions for each volume element
         if timePointer == 0:
@@ -713,20 +728,37 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
                         regionPointer[anglePointer] = regionPointer[anglePointer] + 1
 
                 # check if next step passes time point of interest
-                if (X[0,0]*step_ratio > inject_age[inject_index[i]]):
-                    step = inject_age[inject_index[i]] - X[0,0]
+                if X[0,2] < 0.0001*c_speed:
+                    if (X[0,0]*((step_ratio - 1)/64 + 1) > inject_age[inject_index[i]]):
+                        step = inject_age[inject_index[i]] - X[0,0]
+                    else:
+                        step = X[0,0]*(step_ratio - 1)/64
+                elif X[0,2] < 0.001*c_speed:
+                    if (X[0,0]*((step_ratio - 1)/8 + 1) > inject_age[inject_index[i]]):
+                        step = inject_age[inject_index[i]] - X[0,0]
+                    else:
+                        step = X[0,0]*(step_ratio - 1)/8
                 else:
-                    step = X[0,0]*(step_ratio - 1)
+                    if (X[0,0]*step_ratio > inject_age[inject_index[i]]):
+                        step = inject_age[inject_index[i]] - X[0,0]
+                    else:
+                        step = X[0,0]*(step_ratio - 1)
 
                 # update estimates of time, radius and velocity
-                __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, kValues, temperature, gammaCValue, critical_velocity, strong_shock)
+                if X[0,1] > 0:
+                    __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, kValues, temperature, gammaCValue, critical_velocity, strong_shock)
+                else:
+                    X[:,0] = X[:,0] + step
+                    X[:,1] = -1e64
+                    P[:,:] = 0
+                X[:,1] = np.maximum(-1e-64, X[:,1]) # prevent shocked shell radius redcing below zero (negative is a null value)
                 X[:,3] = np.maximum(1, X[:,3])
                 
                 # find location of jet--lobe transition
                 critical_point[0], critical_point[1], critical_point[2], critical_point[3] = X[0,0], X[0,1], X[0,2]*X[0,3], X[0,4]
              
             # record axis ratio, external pressure and filling factor and injection times
-            if P[-1,0] > 0:
+            if np.nan_to_num(P[-1,0], nan=0) > 0 and P[0,0]/P[-1,0] >= 1/np.tan(open_angle):
                 inject_axis_ratios[inject_index[i]] = 1./(P[0,0]/P[-1,0])**2 # inverted to match alpha_lambda definition
             else:
                 inject_axis_ratios[inject_index[i]] = 1
@@ -738,14 +770,18 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
                 i = i + 1
 
         # calculate the lobe and shocked shell length, shock pressure and total pressure as a function of angle
-        lobe_lengths[angles,timePointer] = P[angles,0]
-        shock_lengths[angles,timePointer] = X[angles,1]
+        lobe_lengths[angles,timePointer] = np.nan_to_num(P[angles,0], nan=0)
+        shock_lengths[angles,timePointer] = np.nan_to_num(X[angles,1], nan=0)
         shock_pressures[angles,timePointer] = P[angles,1]
         lambda_crit[timePointer] = P[0,3]
         
         # calculate lobe minor axis (associated with dimensions of shocked shell) at this time step
-        lobe_minor[timePointer] = X[-1,1]*eta_c[-1]/(shockRadius*eta_s[-1])
-        
+        idx = np.argmax(np.nan_to_num(X[:,1]*np.sin(theta), nan=0)) # find maximum width at any location
+        if X[idx,1] > 0 and idx > 0:
+            lobe_minor[timePointer] = X[idx,1]*eta_c[-1]/(shockRadius*eta_s[idx])
+        else:
+            lobe_minor[timePointer] = 0
+
         # calculate the slope of external pressure profile at this time step
         if inject_pressures[inject_index[2*timePointer]] <= 0:
             alphaP_denv[timePointer] = 0
@@ -754,8 +790,8 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
         if inject_lambdas[2*timePointer] <= 0:
              alpha_lambda[timePointer] = 1e9 # no emission from this injection time
         else:
-            alpha_lambda[timePointer] = np.log(inject_lambdas[2*timePointer + 1]/inject_lambdas[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]) + np.log(inject_axis_ratios[2*timePointer + 1]/inject_axis_ratios[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]) # filling factor and changing volume/axis ratio
-    
+            alpha_lambda[timePointer] = np.nan_to_num(np.log(inject_lambdas[2*timePointer + 1]/inject_lambdas[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]) + np.log(inject_axis_ratios[2*timePointer + 1]/inject_axis_ratios[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]), nan=0) # filling factor and changing volume/axis ratio
+
     return lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, critical_point
 
 
@@ -829,10 +865,13 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
     elif jet_lorentz > 1:
         f[angles,2] = (gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)) - (3*gammaCValue - betas[regionPointer[angles]])*(k_B*temperature/maverage)/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*(X[angles,3]*zetaeta[angles])**2)
     else:
+        # non-relativistic solution
         sub_angles = (X[angles,2]*X[angles,3]*zetaeta)**2/(gammaX*(k_B*temperature/maverage)) <= 1
         super_angles = np.logical_not(sub_angles)
         f[super_angles,2] = (gammaX + 1)*(gammaCValue - 1)*injectFrac[super_angles]*(QavgValue*active_jet)*X[super_angles,1]**(betas[regionPointer[super_angles]] - 3)/(2*X[super_angles,2]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*dchi[super_angles]*(X[super_angles,3]*zetaeta[super_angles])**2*kValues[regionPointer[super_angles]]) + (betas[regionPointer[super_angles]] - 3*gammaCValue)*(X[super_angles,2])**2/(2*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)) + (gammaX - 1)*(3*gammaCValue - betas[regionPointer[super_angles]])*(k_B*temperature/maverage)/(4*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*(X[super_angles,3]*zetaeta[super_angles])**2)
         f[sub_angles,2] = (betas[regionPointer[sub_angles]] - 2)*(X[sub_angles,2])**2/X[sub_angles,1]
+    # prevent large positive accelerations due to numerics
+    f[angles,2] = f[angles,2]*np.maximum(0, np.sign(X[angles,1]))
 
     # combine acceleration from jet-head and lobe as two-phase fluid
     if jet_lorentz > 1:
@@ -858,27 +897,27 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
             f[angles,4] = (betas[regionPointer[angles]] - 2)/(5 - betas[regionPointer[angles]]) * X[angles,4]/(X[0,0] + year)
     else:
         X[angles,4], f[angles,4] = X[angles,2]*X[angles,3], f[angles,2]
-
+    
     # jet/lobe pressure at each volume element
-    volume = X[angles,1]**3*dchi[angles]
+    volume = np.nan_to_num(np.maximum(0, X[angles,1])**3*dchi[angles], nan=0) # handle any volume elements than have become pinched
     if jet_lorentz > 1:
         # calculate lobe pressure
-        P[angles,1] = zetaeta[angles]**2*kValues[regionPointer[angles]]*X[angles,1]**(-betas[regionPointer[angles]])*(np.minimum(X[angles,2], X[angles,4]))**2 + kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]])
+        P[angles,1] = np.nan_to_num(zetaeta[angles]**2*kValues[regionPointer[angles]]*X[angles,1]**(-betas[regionPointer[angles]])*(np.minimum(X[angles,2], X[angles,4]))**2*np.maximum(0, np.sign(X[angles,1])) + kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]]), nan=0)
         
         # calculate average pressure across jet/lobe
-        pressure = np.sum(P[angles,1]*volume)/np.sum(volume)
+        pressure = np.sum(P[angles,1]*volume)/np.sum(volume + 1e-256)
         # set average pressure in all of lobe other than hotspot
         P[angles[1:],1] = pressure
     else:
         # calculate lobe pressure
-        P[super_angles,1] = 2./(gammaX + 1)*zetaeta[super_angles]**2*kValues[regionPointer[super_angles]]*X[super_angles,1]**(-betas[regionPointer[super_angles]])*(X[super_angles,2]*X[super_angles,3])**2 - (gammaX - 1)/(gammaX + 1)*kValues[regionPointer[super_angles]]*(k_B*temperature/maverage)*X[super_angles,1]**(-betas[regionPointer[super_angles]])
+        P[super_angles,1] = np.nan_to_num(2./(gammaX + 1)*zetaeta[super_angles]**2*kValues[regionPointer[super_angles]]*X[super_angles,1]**(-betas[regionPointer[super_angles]])*(X[super_angles,2]*X[super_angles,3])**2*np.maximum(0, np.sign(X[super_angles,1])) - (gammaX - 1)/(gammaX + 1)*kValues[regionPointer[super_angles]]*(k_B*temperature/maverage)*X[super_angles,1]**(-betas[regionPointer[super_angles]]), nan=0)
         P[sub_angles,1] = P[sub_angles,2]
         
         # calculate average pressure across jet/lobe
-        pressure = np.sum(P[angles,1]*volume)/np.sum(volume)
+        pressure = np.sum(P[angles,1]*volume)/np.sum(volume + 1e-256)
         # set average pressure in all of lobe other than hotspot
         P[angles[1:],1] = pressure
-
+    
     # AXIS RATIO
     if jet_lorentz > 1:
         # calculate total mass of particles from the jet
@@ -886,11 +925,17 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         
         # calculate volume occupied by particles expanding at sound speed and maximum fillable volume within shocked shell
         jet_sound = c_speed*np.sqrt(gammaJ - 1)
-        particle_volume = particle_mass/(gammaJ*pressure/jet_sound**2) # mass / density
+        if pressure > 0:
+            particle_volume = particle_mass/(gammaJ*pressure/jet_sound**2) # mass / density
+        else:
+            particle_volume = 0
         shell_volume = np.sum(volume*eta_c/(shockRadius*eta_s))
         
         # calculate (optimal) lobe volume as weighted sum of particle volume and maximum fillable volume (i.e. enable sound speed to reduce as lobe approaches size of shocked shell)
-        lobe_volume = 1./(1./(particle_volume/fill_factor)**axis_exponent + 1./(shell_volume)**axis_exponent)**(1./axis_exponent)
+        if particle_volume > 0:
+            lobe_volume = 1./(1./(particle_volume/fill_factor)**axis_exponent + 1./(shell_volume)**axis_exponent)**(1./axis_exponent)
+        else:
+            lobe_volume = 0
         
         # find axis ratio for an ellipsoidal lobe
         if lobe_volume > 0 and lambda_crit >= lambda_min:
@@ -898,17 +943,17 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         else:
             lobe_axis_ratio = 1/np.tan(open_angle)
         # update lobe length along let axis and axis ratio of shocked shell
-        P[0,0] = X[0,1]/shockRadius
+        P[0,0] = np.maximum(0, X[0,1])/shockRadius
 
         # calculate geometry of each angular volume element
         dtheta = (np.pi/2)/(len(angles) - 1)
         theta = dtheta*angles
         lobe_eta_c = 1./np.sqrt(lobe_axis_ratio**2*(np.sin(theta))**2 + (np.cos(theta))**2)
         # set length of lobe along each angular volume element
-        P[angles[1:],0] = np.minimum(lobe_eta_c[angles[1:]]*P[0,0], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])) # second condition should rarely be met
+        P[angles[1:],0] = np.maximum(0, np.minimum(lobe_eta_c[angles[1:]]*P[0,0], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]]))) # second condition should rarely be met
     else:
         # set length of lobe along each angular volume element
-        P[0,0], P[angles[1:],0] = X[0,1]/shockRadius, X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])
+        P[0,0], P[angles[1:],0] = np.maximum(0, X[0,1])/shockRadius, np.maximum(0, X[angles[1:],1])*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])
 
 
 ## Define functions to download and preprocess particles from hydrodynamical simulations
@@ -988,92 +1033,98 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
     
     # derive emissivity at each time step
     for i in range(0, len(tFinal)):
-        # derive emissivity for random variations in particle distribution
-        for j in range(0, len(timePointer)):
-        
-            # SHOCK ACCELERATION TIMES
-            new_shock_time = shock_time[:,timePointer[j]]*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
-            
-            # PRESSURES
-            new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match Model A
-            # correct the hotspot/lobe pressure ratio based on the dynamical model
-            new_pressure = new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]) + new_pressure # increase log-space pressure linearly along lobe
-            # correct the evolutionary histories of the particles based on the dynamical model
-            alphaP_dyn = np.maximum(-2, np.minimum(0, alphaP_denv[i] + alphaP_hyd[:,timePointer[j]] - alphaP_henv[:,timePointer[j]]))
-            
-            # VOLUMES
-            volume_fraction = volume[:,timePointer[j]]/(4*np.pi/3.*major[timePointer[j]]*minor[timePointer[j]]**2)
-            #volume_sum = np.nansum(volume_fraction[~np.isinf(volume_fraction)])
-            # cap the largest volumes at the 95th percentile to outliers in surface brightness map; minimal effect on total luminosity
-            volume_fraction[volume_fraction > np.nanpercentile(volume_fraction, 95)] = np.nanpercentile(volume_fraction, 95)
-            new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]] #/volume_sum
-            
-            # RELATIVISTIC BEAMING
-            doppler_factor = (np.sqrt(1 - np.minimum(0.99, vx3[:,timePointer[j]])**2)/(1 - np.minimum(0.99, vx3[:,timePointer[j]])*np.sin(angle)))**((s_index + 3)/2.) # Doppler boosting of particles in jet; 0.99c ensures some very low level emission
-            doppler_factor[np.logical_and(np.abs(x3[:,timePointer[j]])/major[timePointer[j]] < 0.1, np.logical_and(np.abs(x1[:,timePointer[j]])/major[timePointer[j]] < 0.01, np.abs(x2[:,timePointer[j]])/major[timePointer[j]] < 0.01))] = 0 # completely remove very bright particles clumped at start of jet
-            
-            # LOBE PARTICLES
-            # find angle and radius of each particle from core
-            new_angles = np.arctan((np.sqrt(x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*lobe_minor[i]/minor[timePointer[j]])/(x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
-            new_radii = np.sqrt((x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*(lobe_minor[i]/minor[timePointer[j]])**2 + (x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])**2)/lobe_lengths[0,i]
-            # find particles within lobe region; particles outside this region will not emit. Particle map is set to axis ratio based on shocked shell to maintain geometry of jet
-            new_eta_c = 1./np.sqrt((lobe_lengths[0,i]/lobe_lengths[-1,i])**2*(np.sin(new_angles))**2 + (np.cos(new_angles))**2)
-            lobe_particles = np.zeros_like(x1[:,timePointer[j]])
-            lobe_particles[np.abs(vx3[:,timePointer[j]]) > 1./np.sqrt(3)] = 1 # assume sound speed is critical value for relativisitic particles
-            lobe_particles[new_radii < new_eta_c] = 1.
-            
-            # TWO PHASE FLUID
-            # fraction of jet particles that have reached location in lobe
-            two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
-            if tActive/tFinal[i] >= 1:
-                # keep jet particles visible at all times
-                two_phase_weighting = np.maximum(two_phase_weighting, np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3)))) # assume sound speed is critical value for relativisitic particles
-            else:
-                # suppress emission from jet particle
-                two_phase_weighting = np.minimum(two_phase_weighting, 1 - np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3))))
-            
-            # PARTICLE EMISSIVITY
-            for k in range(0, len(rest_frequency)):
-                if rest_frequency[k] > 100:
-                    # calculate losses due to adiabatic expansion, and synchrotron/iC radiation
-                    lorentz_ratio, pressure_ratio = __RAiSE_loss_mechanisms(rest_frequency[k], inverse_compton[k], redshift, tFinal[i], new_shock_time, new_pressure, alphaP_dyn, equi_factor, gammaCValue)
-                    
-                    # calculate luminosity associated with each particle
-                    temp_luminosity = None
-                    if inverse_compton[k] == 1:
-                        # inverse-Compton
-                        sync_frequency = (3*e_charge*rest_frequency[k]*np.sqrt(2*mu0*( equi_factor*new_pressure/((gammaCValue - 1)*(equi_factor + 1)) ))/(2*np.pi*m_e*(freq_cmb*temp_cmb*(1 + redshift)))) # assuming emission at CMB frequency only
-                        temp_luminosity = Ks/blackbody*sync_frequency**((1 - s_index)/2.)*(sync_frequency/rest_frequency[k])*(gammaCValue - 1)*__RAiSE_uC(redshift) * (equi_factor**((s_index + 1)/4. -  1 )/(equi_factor + 1)**((s_index + 5)/4. -  1 ))*new_volume*new_pressure**((s_index +  1 )/4.)*pressure_ratio**(1 - 4./(3*gammaCValue))*lorentz_ratio**(2 - s_index)/len(timePointer) * doppler_factor*lobe_particles*two_phase_weighting
-                    else:
-                        # synchrotron
-                        temp_luminosity = Ks*rest_frequency[k]**((1 - s_index)/2.)*(equi_factor**((s_index + 1)/4.)/(equi_factor + 1)**((s_index + 5)/4.))*new_volume*new_pressure**((s_index + 5)/4.)*pressure_ratio**(1 - 4./(3*gammaCValue))*lorentz_ratio**(2 - s_index)/len(timePointer) * doppler_factor*lobe_particles*two_phase_weighting
-                    # remove any infs
-                    index = np.isinf(temp_luminosity)
-                    temp_luminosity[index] = np.nan
-                    luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = temp_luminosity
-                    
-                    # calculate luminosity weighted magnetic field strength
-                    magnetic_particle[i,j,k] = np.nansum(np.sqrt(2*mu0*new_pressure*equi_factor/(gammaCValue - 1)*(equi_factor + 1))*luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k])
-                    magnetic_weighting[i,j,k] = np.nansum(luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k])
-            
-            # PARTICLE PRESSURE
-                else:
-                    luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = new_pressure*lobe_particles
-            
-            # CARTESIAN LOCATIONS
-            location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = x1[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%8 - 3.5)
-            location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = x2[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%4 - 1.5)
-            if np.abs(angle) < 0.01:
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] *np.sign(timePointer[j]%2 - 0.5)
-            else:
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] # ensure beaming is on correct side by only smoothing over x and y locations
+        if lobe_lengths[0,i] > 0:
+            # derive emissivity for random variations in particle distribution
+            for j in range(0, len(timePointer)):
 
-        # calculate luminosity weighted magnetic field strength for time step
-        for k in range(0, len(rest_frequency)):
-            if np.nansum(magnetic_weighting[i,:,k]) == 0:
-                magnetic_field[i,k] = 0
-            else:
-                magnetic_field[i,k] = np.nansum(magnetic_particle[i,:,k])/np.nansum(magnetic_weighting[i,:,k])
+                # SHOCK ACCELERATION TIMES
+                new_shock_time = shock_time[:,timePointer[j]]*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
+                
+                # PRESSURES
+                new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match Model A
+                # correct the hotspot/lobe pressure ratio based on the dynamical model
+                new_pressure = new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]) + new_pressure # increase log-space pressure linearly along lobe
+                # correct the evolutionary histories of the particles based on the dynamical model
+                alphaP_dyn = np.maximum(-2, np.minimum(0, alphaP_denv[i] + alphaP_hyd[:,timePointer[j]] - alphaP_henv[:,timePointer[j]]))
+                
+                # VOLUMES
+                volume_fraction = volume[:,timePointer[j]]/(4*np.pi/3.*major[timePointer[j]]*minor[timePointer[j]]**2)
+                #volume_sum = np.nansum(volume_fraction[~np.isinf(volume_fraction)])
+                # cap the largest volumes at the 95th percentile to outliers in surface brightness map; minimal effect on total luminosity
+                volume_fraction[volume_fraction > np.nanpercentile(volume_fraction, 95)] = np.nanpercentile(volume_fraction, 95)
+                new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]] #/volume_sum
+                
+                # RELATIVISTIC BEAMING
+                doppler_factor = (np.sqrt(1 - np.minimum(0.99, vx3[:,timePointer[j]])**2)/(1 - np.minimum(0.99, vx3[:,timePointer[j]])*np.sin(angle)))**((s_index + 3)/2.) # Doppler boosting of particles in jet; 0.99c ensures some very low level emission
+                doppler_factor[np.logical_and(np.abs(x3[:,timePointer[j]])/major[timePointer[j]] < 0.1, np.logical_and(np.abs(x1[:,timePointer[j]])/major[timePointer[j]] < 0.01, np.abs(x2[:,timePointer[j]])/major[timePointer[j]] < 0.01))] = 0 # completely remove very bright particles clumped at start of jet
+                
+                # LOBE PARTICLES
+                # find angle and radius of each particle from core
+                new_angles = np.arctan((np.sqrt(x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*lobe_minor[i]/minor[timePointer[j]])/(x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
+                new_radii = np.sqrt((x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*(lobe_minor[i]/minor[timePointer[j]])**2 + (x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])**2)#/lobe_lengths[0,i]
+                # find particles within lobe region; particles outside this region will not emit. Particle map is set to axis ratio based on shocked shell to maintain geometry of jet
+                angles = np.arange(0, len(lobe_lengths[:,i]), 1).astype(np.int_)
+                dtheta = (np.pi/2)/(len(angles) - 1)
+                theta = dtheta*angles
+                lobe_particles = np.zeros_like(x1[:,timePointer[j]])
+                for k in range(0, len(angles)):
+                    lobe_particles[np.logical_and(np.logical_and(theta[k] - dtheta/2 <= new_angles, new_angles < theta[k] + dtheta/2), new_radii < lobe_lengths[k,i])] = 1
+                #new_eta_c = 1./np.sqrt((lobe_lengths[0,i]/lobe_minor[i])**2*(np.sin(new_angles))**2 + (np.cos(new_angles))**2)
+                lobe_particles[np.abs(vx3[:,timePointer[j]]) > 1./np.sqrt(3)] = 1 # assume sound speed is critical value for relativisitic particles
+                #lobe_particles[new_radii < new_eta_c] = 1.
+                
+                # TWO PHASE FLUID
+                # fraction of jet particles that have reached location in lobe
+                two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
+                if tActive/tFinal[i] >= 1:
+                    # keep jet particles visible at all times
+                    two_phase_weighting = np.maximum(two_phase_weighting, np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3)))) # assume sound speed is critical value for relativisitic particles
+                else:
+                    # suppress emission from jet particle
+                    two_phase_weighting = np.minimum(two_phase_weighting, 1 - np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3))))
+                
+                # PARTICLE EMISSIVITY
+                for k in range(0, len(rest_frequency)):
+                    if rest_frequency[k] > 100:
+                        # calculate losses due to adiabatic expansion, and synchrotron/iC radiation
+                        lorentz_ratio, pressure_ratio = __RAiSE_loss_mechanisms(rest_frequency[k], inverse_compton[k], redshift, tFinal[i], new_shock_time, new_pressure, alphaP_dyn, equi_factor, gammaCValue)
+                        
+                        # calculate luminosity associated with each particle
+                        temp_luminosity = None
+                        if inverse_compton[k] == 1:
+                            # inverse-Compton
+                            sync_frequency = (3*e_charge*rest_frequency[k]*np.sqrt(2*mu0*( equi_factor*new_pressure/((gammaCValue - 1)*(equi_factor + 1)) ))/(2*np.pi*m_e*(freq_cmb*temp_cmb*(1 + redshift)))) # assuming emission at CMB frequency only
+                            temp_luminosity = Ks/blackbody*sync_frequency**((1 - s_index)/2.)*(sync_frequency/rest_frequency[k])*(gammaCValue - 1)*__RAiSE_uC(redshift) * (equi_factor**((s_index + 1)/4. -  1 )/(equi_factor + 1)**((s_index + 5)/4. -  1 ))*new_volume*new_pressure**((s_index +  1 )/4.)*pressure_ratio**(1 - 4./(3*gammaCValue))*lorentz_ratio**(2 - s_index)/len(timePointer) * doppler_factor*lobe_particles*two_phase_weighting
+                        else:
+                            # synchrotron
+                            temp_luminosity = Ks*rest_frequency[k]**((1 - s_index)/2.)*(equi_factor**((s_index + 1)/4.)/(equi_factor + 1)**((s_index + 5)/4.))*new_volume*new_pressure**((s_index + 5)/4.)*pressure_ratio**(1 - 4./(3*gammaCValue))*lorentz_ratio**(2 - s_index)/len(timePointer) * doppler_factor*lobe_particles*two_phase_weighting
+                        # remove any infs
+                        index = np.isinf(temp_luminosity)
+                        temp_luminosity[index] = np.nan
+                        luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = temp_luminosity
+                        
+                        # calculate luminosity weighted magnetic field strength
+                        magnetic_particle[i,j,k] = np.nansum(np.sqrt(2*mu0*new_pressure*equi_factor/(gammaCValue - 1)*(equi_factor + 1))*luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k])
+                        magnetic_weighting[i,j,k] = np.nansum(luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k])
+                
+                # PARTICLE PRESSURE
+                    else:
+                        luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = new_pressure*lobe_particles
+                
+                # CARTESIAN LOCATIONS
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = x1[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%8 - 3.5)
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = x2[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%4 - 1.5)
+                if np.abs(angle) < 0.01:
+                    location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] *np.sign(timePointer[j]%2 - 0.5)
+                else:
+                    location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] # ensure beaming is on correct side by only smoothing over x and y locations
+
+            # calculate luminosity weighted magnetic field strength for time step
+            for k in range(0, len(rest_frequency)):
+                if np.nansum(magnetic_weighting[i,:,k]) == 0:
+                    magnetic_field[i,k] = 0
+                else:
+                    magnetic_field[i,k] = np.nansum(magnetic_particle[i,:,k])/np.nansum(magnetic_weighting[i,:,k])
 
     return location, luminosity, magnetic_field
 
