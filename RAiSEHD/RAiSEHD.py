@@ -1,5 +1,5 @@
 # RAiSERHD module
-# Ross Turner, 15 Jan 2025
+# Ross Turner, 4 Mar 2025
 
 # import packages
 import h5py
@@ -111,7 +111,7 @@ class Colors:
 def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, brightness=True, angle=0., resolution='standard', seed=None, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, particle_data=False):
     
     # record start time of code
-    if not (resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         start_time = ti.time()
     
     # function to test type of inputs and convert type where appropriate
@@ -122,7 +122,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
     # download and pre-process particles from hydrodynamical simulation
     lobe_angles = nangles
     step_ratio = stepRatio
-    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128'):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128'):
         print(__color_text('Reading particle data from file.', Colors.Green))
         time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio = __PLUTO_particles('RAiSE_particles.hdf5', nsamples=-1)
     elif not resolution == None:
@@ -138,15 +138,15 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
         __set_seed(seed)
         
     # create folder for output files if not present
-    if not (resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         if not os.path.exists('LDtracks'):
             os.mkdir('LDtracks')
     else:
         df_list, dg_list = [], []
     
-    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128'):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128'):
         print(__color_text('Running RAiSE dynamics and emissivity.', Colors.Green))
-    elif resolution == None:
+    elif resolution == None and (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         print(__color_text('Running RAiSE dynamics.', Colors.Green))
 
     for i in range(0, len(redshift)):
@@ -195,7 +195,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                             df['L{:.2f} (W/Hz)'.format(frequency[q])] = np.nansum(luminosity[:,:,q], axis=1)
                                     
                                 # write data to file
-                                if not (resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+                                if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
                                     if isinstance(rho0Value, (list, np.ndarray)):
                                         df.to_csv('LDtracks/LD_A={:.2f}_eq={:.2f}_p={:.4f}_Q={:.2f}_s={:.2f}_T={:.2f}_v={:.2f}_y={:.2f}_z={:.2f}.csv'.format(axis_ratio[j], np.abs(equipartition[n]), np.abs(np.log10(rho0Value[l])), jet_power[k], 2*np.abs(spectral_index) + 1, active_age[m], angle, jet_lorentz[o], redshift[i]), index=False)
                                     elif isinstance(halo_mass, (list, np.ndarray)):
@@ -216,7 +216,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                                 dg = pd.DataFrame(index=x_values[p][q]/const.kpc.value, columns=y_values[p][q]/const.kpc.value, data=brightness_list[p][q])
                                         
                                                 # write surface brightness map to file
-                                                if not (resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+                                                if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
                                                     if isinstance(rho0Value, (list, np.ndarray)):
                                                         if frequency[q] > 0:
                                                             dg.to_csv('LDtracks/LD_A={:.2f}_eq={:.2f}_p={:.4f}_Q={:.2f}_s={:.2f}_T={:.2f}_v={:.2f}_y={:.2f}_z={:.2f}_nu={:.2f}_t={:.2f}_{:s}.csv'.format(axis_ratio[j], np.abs(equipartition[n]), np.abs(np.log10(rho0Value[l])), jet_power[k], 2*np.abs(spectral_index) + 1, active_age[m], angle, jet_lorentz[o], redshift[i], frequency[q], source_age[p], resolution), header=True, index=True)
@@ -240,11 +240,14 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                                     raise Exception('Either the halo mass or full density profile must be provided as model inputs.')
         
     # return particle data to user if running resolutions for a MCMC inversion
-    if (resolution == '__1' or resolution == '__2' or resolution == '__8' or resolution == '__32' or resolution == '__128') and not (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') and not (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         if brightness == True:
             return df_list, dg_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
         else:
-            return df_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
+            if resolution == None:
+                return df_list, None
+            else:
+                return df_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
     else:
         # print total run time to screen
         print(__color_text('RAiSE completed running after {:.3f} seconds.'.format(ti.time() - start_time), Colors.Green))
@@ -381,10 +384,16 @@ def __RAiSE_resolution(resolution='standard'):
         nsamples, npixels = 512, 256
     elif resolution == 'standard' or resolution == '__128':
         nsamples, npixels = 128, 128
+    elif resolution == '__64':
+        nsamples, npixels = 64, 128
     elif resolution == 'poor' or resolution == '__32':
         nsamples, npixels = 32, 64
+    elif resolution == '__16':
+        nsamples, npixels = 16, 64
     elif resolution == '__8':
         nsamples, npixels = 8, 32
+    elif resolution == '__4':
+        nsamples, npixels = 4, 32
     elif resolution == '__2':
         nsamples, npixels = 2, 16
     elif resolution == '__1':
@@ -847,28 +856,20 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         P[0,3] = 1
         
     # ACCELERATION
-    # update fraction of jet power injected into each volume element
-    injectFrac_new = dchi*eta_s**(3 - betas[regionPointer[0]])*zetaeta**2
-    injectFrac_new = injectFrac/np.sum(injectFrac) # sum should be equal to unity
-    if jet_lorentz > 1:
-        injectFrac[angles] = (1 - lambda_crit)*injectFrac_new + lambda_crit*injectFrac # keep static at late times
-    else:
-        injectFrac[angles] = injectFrac_new[angles]
-    
     # acceleration of jet-head
     if jet_lorentz > 1:
         jet_acceleration = (betas[regionPointer[0]] - 2)*bulk_velocity*X[0,2]/(2*X[0,1]*(1 + eta_R**(-1./2))**2*eta_R**(1./2))
 
     # acceleration of lobe (supersonic/subsonic)
     if jet_lorentz > 1 and strong_shock == True:
-        f[angles,2] = np.minimum((gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)), (betas[regionPointer[angles]] - 2)/(5 - betas[regionPointer[angles]]) * X[angles,2]*X[angles,3]/(X[0,0] + year)) # ensure model doesn't run slower than limit due to numerics
+        f[angles,2] = np.minimum((gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(2*X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)), (betas[regionPointer[angles]] - 2)/(5 - betas[regionPointer[angles]]) * X[angles,2]*X[angles,3]/(X[0,0] + year)) # ensure model doesn't run slower than limit due to numerics
     elif jet_lorentz > 1:
-        f[angles,2] = (gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)) - (3*gammaCValue - betas[regionPointer[angles]])*(k_B*temperature/maverage)/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*(X[angles,3]*zetaeta[angles])**2)
+        f[angles,2] = (gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(2*X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)) - (3*gammaCValue - betas[regionPointer[angles]])*(k_B*temperature/maverage)/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*(X[angles,3]*zetaeta[angles])**2)
     else:
         # non-relativistic solution
         sub_angles = (X[angles,2]*X[angles,3]*zetaeta)**2/(gammaX*(k_B*temperature/maverage)) <= 1
         super_angles = np.logical_not(sub_angles)
-        f[super_angles,2] = (gammaX + 1)*(gammaCValue - 1)*injectFrac[super_angles]*(QavgValue*active_jet)*X[super_angles,1]**(betas[regionPointer[super_angles]] - 3)/(2*X[super_angles,2]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*dchi[super_angles]*(X[super_angles,3]*zetaeta[super_angles])**2*kValues[regionPointer[super_angles]]) + (betas[regionPointer[super_angles]] - 3*gammaCValue)*(X[super_angles,2])**2/(2*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)) + (gammaX - 1)*(3*gammaCValue - betas[regionPointer[super_angles]])*(k_B*temperature/maverage)/(4*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*(X[super_angles,3]*zetaeta[super_angles])**2)
+        f[super_angles,2] = (gammaX + 1)*(gammaCValue - 1)*injectFrac[super_angles]*(QavgValue*active_jet)*X[super_angles,1]**(betas[regionPointer[super_angles]] - 3)/(4*X[super_angles,2]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*dchi[super_angles]*(X[super_angles,3]*zetaeta[super_angles])**2*kValues[regionPointer[super_angles]]) + (betas[regionPointer[super_angles]] - 3*gammaCValue)*(X[super_angles,2])**2/(2*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)) + (gammaX - 1)*(3*gammaCValue - betas[regionPointer[super_angles]])*(k_B*temperature/maverage)/(4*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*(X[super_angles,3]*zetaeta[super_angles])**2)
         f[sub_angles,2] = (betas[regionPointer[sub_angles]] - 2)*(X[sub_angles,2])**2/X[sub_angles,1]
     # prevent large positive accelerations due to numerics
     f[angles,2] = f[angles,2]*np.maximum(0, np.sign(X[angles,1]))
@@ -1112,12 +1113,9 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                         luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = new_pressure*lobe_particles
                 
                 # CARTESIAN LOCATIONS
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = x1[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%8 - 3.5)
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = x2[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] *np.sign(timePointer[j]%4 - 1.5)
-                if np.abs(angle) < 0.01:
-                    location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] *np.sign(timePointer[j]%2 - 0.5)
-                else:
-                    location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] # ensure beaming is on correct side by only smoothing over x and y locations
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = x1[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%8 - 3.5)
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = x2[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%4 - 1.5)
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] #*np.sign(timePointer[j]%2 - 0.5)
 
             # calculate luminosity weighted magnetic field strength for time step
             for k in range(0, len(rest_frequency)):
@@ -1209,7 +1207,7 @@ def __RAiSE_brightness_map(frequency, redshift, source_age, lobe_lengths, locati
 
 
 # define function to discretise particles down to pixels
-@jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
+#@jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
 def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, luminosity, angle, npixels):
 
     # instantiate variables to store brightness map variables
@@ -1253,6 +1251,11 @@ def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, lum
                 # add x and y pixel values, and brightnesses to arrays
                 x_col.append((x_values + min_x + 0.5)*lobe_lengths[0,i]/(npixels//2)) # add 0.5 to get pixel centres and scale back to physical dimensions
                 y_col.append((y_values + min_y + 0.5)*lobe_lengths[0,i]/(npixels//2))
+                
+                # reflect image about x-axis to reduce number of calculations required
+                brightness = (brightness + np.fliplr(brightness))/2.
+                if np.abs(angle) < 0.01:
+                    brightness = (brightness + np.flipud(brightness))/2.
                 brightness_col.append(brightness)
             else:
                 x_col.append(None)
@@ -1262,7 +1265,7 @@ def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, lum
         x_list.append(x_col)
         y_list.append(y_col)
         brightness_list.append(brightness_col)
-    
+
     return x_list, y_list, brightness_list
 
 
