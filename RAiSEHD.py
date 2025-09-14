@@ -1,5 +1,5 @@
 # RAiSERHD module
-# Ross Turner, 4 Mar 2025
+# Ross Turner, 14 Sep 2025
 
 # import packages
 import h5py
@@ -28,9 +28,11 @@ freq_cmb = 5.879e10 # frequency of cosmic microwave background at z = 0
 temp_cmb = 2.725 # temperature of cosmic microwave background at z = 0
 
 c_speed = const.c.value # speed of light
+kpc = const.kpc.value # kiloparsec
 e_charge = const.e.value # electron charge
 k_B = const.k_B.value # Boltzmann constant
 m_e = const.m_e.value # electron mass
+m_p = const.m_p.value # proton mass
 mu0 = const.mu0.value # vacuum permeability
 sigma_T = const.sigma_T.value # electron scattering cross-section
 
@@ -108,10 +110,10 @@ class Colors:
 
 
 ## Define main function to run RAiSE HD
-def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, brightness=True, angle=0., resolution='standard', seed=None, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, particle_data=False):
+def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, brightness=True, angle=0., pair_plasma=False, resolution='standard', seed=None, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, particle_data=False):
     
     # record start time of code
-    if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         start_time = ti.time()
     
     # function to test type of inputs and convert type where appropriate
@@ -122,7 +124,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
     # download and pre-process particles from hydrodynamical simulation
     lobe_angles = nangles
     step_ratio = stepRatio
-    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128'):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048'):
         print(__color_text('Reading particle data from file.', Colors.Green))
         time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio = __PLUTO_particles('RAiSE_particles.hdf5', nsamples=-1)
     elif not resolution == None:
@@ -138,13 +140,13 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
         __set_seed(seed)
         
     # create folder for output files if not present
-    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         if not os.path.exists('LDtracks'):
             os.mkdir('LDtracks')
     else:
         df_list, dg_list = [], []
     
-    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128'):
+    if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048'):
         print(__color_text('Running RAiSE dynamics and emissivity.', Colors.Green))
     elif resolution == None and (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         print(__color_text('Running RAiSE dynamics.', Colors.Green))
@@ -177,7 +179,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                 
                                 # calculate synchrotron emission from lobe using particles and RAiSE model
                                 if not resolution == None:
-                                    location, luminosity, magnetic_field = __RAiSE_emissivity(frequency, redshift[i], time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age[m], equipartition[n], spectral_index, gammaCValue=gammaCValue, lorentz_min=lorentz_min, angle=angle, resolution=resolution)
+                                    location, luminosity, magnetic_field = __RAiSE_emissivity(frequency, redshift[i], time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age[m], equipartition[n], spectral_index, gammaCValue=gammaCValue, lorentz_min=lorentz_min, angle=angle, pair_plasma=pair_plasma, resolution=resolution)
                                 
                                 # create pandas dataframe for integrated emission
                                 angles = np.arange(0, lobe_angles, 1).astype(np.int_)
@@ -195,7 +197,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                             df['L{:.2f} (W/Hz)'.format(frequency[q])] = np.nansum(luminosity[:,:,q], axis=1)
                                     
                                 # write data to file
-                                if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+                                if not (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
                                     if isinstance(rho0Value, (list, np.ndarray)):
                                         df.to_csv('LDtracks/LD_A={:.2f}_eq={:.2f}_p={:.4f}_Q={:.2f}_s={:.2f}_T={:.2f}_v={:.2f}_y={:.2f}_z={:.2f}.csv'.format(axis_ratio[j], np.abs(equipartition[n]), np.abs(np.log10(rho0Value[l])), jet_power[k], 2*np.abs(spectral_index) + 1, active_age[m], angle, jet_lorentz[o], redshift[i]), index=False)
                                     elif isinstance(halo_mass, (list, np.ndarray)):
@@ -216,7 +218,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                                 dg = pd.DataFrame(index=x_values[p][q]/const.kpc.value, columns=y_values[p][q]/const.kpc.value, data=brightness_list[p][q])
                                         
                                                 # write surface brightness map to file
-                                                if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+                                                if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
                                                     if isinstance(rho0Value, (list, np.ndarray)):
                                                         if frequency[q] > 0:
                                                             dg.to_csv('LDtracks/LD_A={:.2f}_eq={:.2f}_p={:.4f}_Q={:.2f}_s={:.2f}_T={:.2f}_v={:.2f}_y={:.2f}_z={:.2f}_nu={:.2f}_t={:.2f}_{:s}.csv'.format(axis_ratio[j], np.abs(equipartition[n]), np.abs(np.log10(rho0Value[l])), jet_power[k], 2*np.abs(spectral_index) + 1, active_age[m], angle, jet_lorentz[o], redshift[i], frequency[q], source_age[p], resolution), header=True, index=True)
@@ -240,7 +242,7 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                                     raise Exception('Either the halo mass or full density profile must be provided as model inputs.')
         
     # return particle data to user if running resolutions for a MCMC inversion
-    if (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128') and not (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
+    if (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') and not (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         if brightness == True:
             return df_list, dg_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
         else:
@@ -378,9 +380,9 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
 def __RAiSE_resolution(resolution='standard'):
 
     # determine spatial resolution of particles; i.e. overdensity of particles to include in calculations
-    if resolution == 'best':
+    if resolution == 'best' or resolution == '__2048':
         nsamples, npixels = 2048, 512
-    elif resolution == 'high':
+    elif resolution == 'high' or resolution == '__512':
         nsamples, npixels = 512, 256
     elif resolution == 'standard' or resolution == '__128':
         nsamples, npixels = 128, 128
@@ -985,7 +987,7 @@ def __PLUTO_particles(particle_data_path, nsamples=-1):
 
 ## Define functions to add emissivity from particles in hydrodynamical simulations on top of dynamics
 # function to manage orientation and distribution of particles from simulation output
-def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age, equipartition, spectral_index, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., resolution='standard'):
+def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age, equipartition, spectral_index, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., pair_plasma=False,resolution='standard'):
     
     # determine spatial resolution of particles; i.e. overdensity of particles to include in calculations
     nsamples, npixels = __RAiSE_resolution(resolution)
@@ -1019,12 +1021,12 @@ def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, 
     Ks = __RAiSE_Ks(s_index, gammaCValue, lorentz_min)
     blackbody = __RAiSE_blackbody(s_index)
     
-    return __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, viewing_angle)
+    return __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, viewing_angle, pair_plasma)
 
 
 # function to calculate emissivity from each particle using RAiSE model
 @jit(nopython=True, parallel=True) # Set "nopython" mode for best performance, equivalent to @njit
-def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, angle):
+def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, angle, pair_plasma):
     
     # instantiate variables
     luminosity = np.zeros((len(tFinal), len(timePointer)*len(pressure[:,0]), len(rest_frequency)))
@@ -1039,10 +1041,13 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
             for j in range(0, len(timePointer)):
 
                 # SHOCK ACCELERATION TIMES
-                new_shock_time = shock_time[:,timePointer[j]]*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
+                shock_indices = np.arange(shock_time[:,timePointer[j]].size)[shock_time[:,timePointer[j]] == np.max(shock_time[:,timePointer[j]])] # find indices of particles shock-accelerated this time-step
+                shock_site = np.quantile(np.abs(x3[shock_indices,timePointer[j]]), 0.95) # find simulation distance of shock-site, excluding a small number of outliers
+                shock_hotspot_time = (major[timePointer[j]] - shock_site)*kpc/c_speed/(1e6*year) # correction to simulation shock-acceleration times due to location of shock-site
+                new_shock_time = (np.minimum(shock_time[:,timePointer[j]] + shock_hotspot_time, time[timePointer[j]]))*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
                 
                 # PRESSURES
-                new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match Model A
+                new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match model at minor axis
                 # correct the hotspot/lobe pressure ratio based on the dynamical model
                 new_pressure = new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]) + new_pressure # increase log-space pressure linearly along lobe
                 # correct the evolutionary histories of the particles based on the dynamical model
@@ -1050,29 +1055,47 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 
                 # VOLUMES
                 volume_fraction = volume[:,timePointer[j]]/(4*np.pi/3.*major[timePointer[j]]*minor[timePointer[j]]**2)
-                #volume_sum = np.nansum(volume_fraction[~np.isinf(volume_fraction)])
                 # cap the largest volumes at the 95th percentile to outliers in surface brightness map; minimal effect on total luminosity
                 volume_fraction[volume_fraction > np.nanpercentile(volume_fraction, 95)] = np.nanpercentile(volume_fraction, 95)
-                new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]] #/volume_sum
+                if pair_plasma:
+                    new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]]*m_p/(tracer[:,timePointer[j]]*m_p + (1 - tracer[:,timePointer[j]])*m_e)
+                else:
+                    new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]]
                 
                 # RELATIVISTIC BEAMING
                 doppler_factor = (np.sqrt(1 - np.minimum(0.99, vx3[:,timePointer[j]])**2)/(1 - np.minimum(0.99, vx3[:,timePointer[j]])*np.sin(angle)))**((s_index + 3)/2.) # Doppler boosting of particles in jet; 0.99c ensures some very low level emission
                 doppler_factor[np.logical_and(np.abs(x3[:,timePointer[j]])/major[timePointer[j]] < 0.1, np.logical_and(np.abs(x1[:,timePointer[j]])/major[timePointer[j]] < 0.01, np.abs(x2[:,timePointer[j]])/major[timePointer[j]] < 0.01))] = 0 # completely remove very bright particles clumped at start of jet
                 
+                # JET WIDTH
+                # find the jet (and jet-like) particles
+                jet_indices = np.arange(vx3[:,timePointer[j]].size)[np.abs(vx3[:,timePointer[j]]) > 1./np.sqrt(3)] # find indices of high-speed jet particles
+                jet_indices_core = np.arange(vx3[:,timePointer[j]].size)[np.abs(vx3[:,timePointer[j]]) > 0.1] # find indices of all jet-like particles
+                # find jet width assuming it is capped at the size of that in the largest simulation
+                jet_radii = np.sqrt(x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2) # radius to each particle in polar coordinates
+                jet_width_core = np.nanpercentile(np.abs(jet_radii[jet_indices_core]), 95) # width for all jet-like particles
+                jet_width = (np.nanpercentile(np.abs(jet_radii[jet_indices]), 95) - jet_width_core)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]) + jet_width_core
+                # set factor to scale width of jet; this is the same as the rest of the lobe except for the largest sources
+                jet_scale_factor = min(1, minor[timePointer[j]]/lobe_minor[i]) # check if np.max(minor)
+                lobe_scale_factor = ((minor[timePointer[j]] - jet_width*jet_scale_factor)/(minor[timePointer[j]] - jet_width)*(jet_radii - jet_width) + jet_width*jet_scale_factor)/(jet_radii + 1e-256)
+                # relocate particles uniformly in (polar) radius
+                new_x1, new_x2 = x1[:,timePointer[j]].copy(), x2[:,timePointer[j]].copy()
+                new_x1[jet_radii <= jet_width], new_x2[jet_radii <= jet_width] = new_x1[jet_radii <= jet_width]*jet_scale_factor, new_x2[jet_radii <= jet_width]*jet_scale_factor
+                new_x1[jet_radii > jet_width], new_x2[jet_radii > jet_width] = new_x1[jet_radii > jet_width]*lobe_scale_factor[jet_radii > jet_width], new_x2[jet_radii > jet_width]*lobe_scale_factor[jet_radii > jet_width]
+                # correct volumes to match new particle locations
+                new_volume = new_volume*(new_x1**2 + new_x2**2)/jet_radii**2
+                
                 # LOBE PARTICLES
                 # find angle and radius of each particle from core
-                new_angles = np.arctan((np.sqrt(x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*lobe_minor[i]/minor[timePointer[j]])/(x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
-                new_radii = np.sqrt((x1[:,timePointer[j]]**2 + x2[:,timePointer[j]]**2)*(lobe_minor[i]/minor[timePointer[j]])**2 + (x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])**2)#/lobe_lengths[0,i]
+                new_angles = np.arctan((np.sqrt(new_x1**2 + new_x2**2)*lobe_minor[i]/minor[timePointer[j]])/(x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
+                new_radii = np.sqrt((new_x1**2 + new_x2**2)*(lobe_minor[i]/minor[timePointer[j]])**2 + (x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])**2)#/lobe_lengths[0,i]
                 # find particles within lobe region; particles outside this region will not emit. Particle map is set to axis ratio based on shocked shell to maintain geometry of jet
                 angles = np.arange(0, len(lobe_lengths[:,i]), 1).astype(np.int_)
                 dtheta = (np.pi/2)/(len(angles) - 1)
                 theta = dtheta*angles
-                lobe_particles = np.zeros_like(x1[:,timePointer[j]])
+                lobe_particles = np.zeros_like(new_x1)
                 for k in range(0, len(angles)):
                     lobe_particles[np.logical_and(np.logical_and(theta[k] - dtheta/2 <= new_angles, new_angles < theta[k] + dtheta/2), new_radii < lobe_lengths[k,i])] = 1
-                #new_eta_c = 1./np.sqrt((lobe_lengths[0,i]/lobe_minor[i])**2*(np.sin(new_angles))**2 + (np.cos(new_angles))**2)
-                lobe_particles[np.abs(vx3[:,timePointer[j]]) > 1./np.sqrt(3)] = 1 # assume sound speed is critical value for relativisitic particles
-                #lobe_particles[new_radii < new_eta_c] = 1.
+                lobe_particles[jet_indices] = 1 # assume sound speed is critical value for relativisitic particles
                 
                 # TWO PHASE FLUID
                 # fraction of jet particles that have reached location in lobe
@@ -1113,8 +1136,8 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                         luminosity[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),k] = new_pressure*lobe_particles
                 
                 # CARTESIAN LOCATIONS
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = x1[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%8 - 3.5)
-                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = x2[:,timePointer[j]]*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%4 - 1.5)
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),0] = new_x1*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%8 - 3.5)
+                location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),1] = new_x2*lobe_minor[i]/minor[timePointer[j]] #*np.sign(timePointer[j]%4 - 1.5)
                 location[i,j*len(pressure[:,0]):(j+1)*len(pressure[:,0]),2] = x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]] #*np.sign(timePointer[j]%2 - 0.5)
 
             # calculate luminosity weighted magnetic field strength for time step
@@ -1270,7 +1293,7 @@ def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, lum
 
 
 # Define functions to plot emissivity maps throughout source evolutionary history
-def RAiSE_evolution_maps(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., seed=None, rerun=False, cmap='RdPu'):
+def RAiSE_evolution_maps(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., pair_plasma=False, seed=None, rerun=False, cmap='RdPu'):
     
     # function to test type of inputs and convert type where appropriate
     frequency, redshift, axis_ratio, jet_power, source_age, halo_mass, betas, regions, rho0Value, temperature, active_age, equipartition, jet_lorentz, nenvirons = __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass, betas, regions, rho0Value, temperature, active_age, equipartition, jet_lorentz)
@@ -1307,12 +1330,12 @@ def RAiSE_evolution_maps(frequency, redshift, axis_ratio, jet_power, source_age,
                 dataframe = pd.read_csv(filename+'_best.csv', index_col=0)
             except:
                 # run RAiSE HD for set of parameters at requested resolution
-                RAiSE_run(frequency[0], redshift[0], axis_ratio[0], jet_power[0], source_age[i], halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[0], jet_lorentz=jet_lorentz[0], equipartition=equipartition[0], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=True, angle=angle, resolution='best', seed=seed)
+                RAiSE_run(frequency[0], redshift[0], axis_ratio[0], jet_power[0], source_age[i], halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[0], jet_lorentz=jet_lorentz[0], equipartition=equipartition[0], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=True, angle=angle, pair_plasma=pair_plasma, resolution='best', seed=seed)
                 dataframe = pd.read_csv(filename+'_best.csv', index_col=0)
 
         else:
             # run RAiSE HD for set of parameters at requested resolution
-            RAiSE_run(frequency[0], redshift[0], axis_ratio[0], jet_power[0], source_age[i], halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[0], jet_lorentz=jet_lorentz[0], equipartition=equipartition[0], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=True, angle=angle, resolution='best', seed=seed)
+            RAiSE_run(frequency[0], redshift[0], axis_ratio[0], jet_power[0], source_age[i], halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[0], jet_lorentz=jet_lorentz[0], equipartition=equipartition[0], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=True, angle=angle, pair_plasma=pair_plasma, resolution='best', seed=seed)
             dataframe = pd.read_csv(filename+'_best.csv', index_col=0)
             
         # assign dataframe contents to variables
@@ -1364,7 +1387,7 @@ def RAiSE_evolution_maps(frequency, redshift, axis_ratio, jet_power, source_age,
 
 
 # Define function to plot Dt and LD tracks
-def RAiSE_evolution_tracks(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., resolution='standard', seed=None, rerun=False, labels=None, colors=None, linestyles=None):
+def RAiSE_evolution_tracks(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., pair_plasma=False, resolution='standard', seed=None, rerun=False, labels=None, colors=None, linestyles=None):
 
     # function to test type of inputs and convert type where appropriate
     frequency, redshift, axis_ratio, jet_power, source_age, halo_mass, betas, regions, rho0Value, temperature, active_age, equipartition, jet_lorentz, nenvirons = __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass, betas, regions, rho0Value, temperature, active_age, equipartition, jet_lorentz)
@@ -1421,11 +1444,11 @@ def RAiSE_evolution_tracks(frequency, redshift, axis_ratio, jet_power, source_ag
                 dataframe = pd.read_csv(filename+'.csv', index_col=None)
             except:
                 # run RAiSE HD for set of parameters at requested resolution
-                RAiSE_run(frequency, redshift[min(len(redshift) - 1, i)], axis_ratio[min(len(axis_ratio) - 1, i)], jet_power[min(len(jet_power) - 1, i)], source_age, halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[min(len(active_age) - 1, i)], jet_lorentz=jet_lorentz[min(len(jet_lorentz) - 1, i)], equipartition=equipartition[min(len(equipartition) - 1, i)], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=False, angle=angle, resolution=resolution, seed=seed)
+                RAiSE_run(frequency, redshift[min(len(redshift) - 1, i)], axis_ratio[min(len(axis_ratio) - 1, i)], jet_power[min(len(jet_power) - 1, i)], source_age, halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[min(len(active_age) - 1, i)], jet_lorentz=jet_lorentz[min(len(jet_lorentz) - 1, i)], equipartition=equipartition[min(len(equipartition) - 1, i)], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=False, angle=angle, pair_plasma=pair_plasma, resolution=resolution, seed=seed)
                 dataframe = pd.read_csv(filename+'.csv', index_col=None)
         else:
             # run RAiSE HD for set of parameters at requested resolution
-            RAiSE_run(frequency, redshift[min(len(redshift) - 1, i)], axis_ratio[min(len(axis_ratio) - 1, i)], jet_power[min(len(jet_power) - 1, i)], source_age, halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[min(len(active_age) - 1, i)], jet_lorentz=jet_lorentz[min(len(jet_lorentz) - 1, i)], equipartition=equipartition[min(len(equipartition) - 1, i)], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=False, angle=angle, resolution=resolution, seed=seed)
+            RAiSE_run(frequency, redshift[min(len(redshift) - 1, i)], axis_ratio[min(len(axis_ratio) - 1, i)], jet_power[min(len(jet_power) - 1, i)], source_age, halo_mass=halo_mass, rand_profile=rand_profile, betas=betas, regions=regions, rho0Value=rho0Value, temperature=temperature, active_age=active_age[min(len(active_age) - 1, i)], jet_lorentz=jet_lorentz[min(len(jet_lorentz) - 1, i)], equipartition=equipartition[min(len(equipartition) - 1, i)], spectral_index=spectral_index, gammaCValue=gammaCValue, lorentz_min=Lorentzmin, brightness=False, angle=angle, pair_plasma=pair_plasma, resolution=resolution, seed=seed)
             dataframe = pd.read_csv(filename+'.csv', index_col=None)
         
         time.append((dataframe.iloc[:,0]).astype(np.float_))
@@ -1521,3 +1544,4 @@ def RAiSE_evolution_tracks(frequency, redshift, axis_ratio, jet_power, source_ag
     # show plot and return handle to plot
     plt.show()
     return fig
+
