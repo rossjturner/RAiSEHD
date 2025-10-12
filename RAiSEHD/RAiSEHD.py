@@ -995,11 +995,13 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         lobe_eta_c = 1./np.sqrt(lobe_axis_ratio**2*(np.sin(theta))**2 + (np.cos(theta))**2)
         # set length of lobe along each angular volume element
         if X[0,0] <= active_age:
-            X[0,5], X[angles[1:],5] = np.maximum(0, X[0,1])/shockRadius, np.maximum(0, np.minimum(lobe_eta_c[angles[1:]]*X[0,5], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]]))) # second condition should rarely be met
+            X[0,5] = np.maximum(0, X[0,1])/shockRadius
+            X[angles[1:],5] = np.maximum(0, np.minimum(lobe_eta_c[angles[1:]]*X[0,5], X[angles[1:],1]*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]]))) # second condition should rarely be met
     else:
         # set length of lobe along each angular volume element
         if X[0,0] <= active_age:
-            X[0,5], X[angles[1:],5] = np.maximum(0, X[0,1])/shockRadius, np.maximum(0, X[angles[1:],1])*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])
+            X[0,5] = np.maximum(0, X[0,1])/shockRadius
+            X[angles[1:],5] = np.maximum(0, X[angles[1:],1])*eta_c[angles[1:]]/(shockRadius*eta_s[angles[1:]])
 
 
 ## Define functions to download and preprocess particles from hydrodynamical simulations
@@ -1085,7 +1087,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
 
                 # SHOCK ACCELERATION TIMES
                 shock_indices = np.arange(shock_time[:,timePointer[j]].size)[shock_time[:,timePointer[j]] == np.nanmax(shock_time[:,timePointer[j]])] # find indices of particles shock-accelerated this time-step
-                shock_site = np.quantile(np.abs(x3[shock_indices,timePointer[j]]), 0.95) # find simulation distance of shock-site, excluding a small number of outliers
+                shock_site = np.nanpercentile(np.abs(x3[shock_indices,timePointer[j]]), 95) # find simulation distance of shock-site, excluding a small number of outliers
                 shock_hotspot_time = (major[timePointer[j]] - shock_site)*kpc/c_speed/(1e6*year) # correction to simulation shock-acceleration times due to location of shock-site
                 new_shock_time = (np.minimum(shock_time[:,timePointer[j]] + shock_hotspot_time, time[timePointer[j]]))*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
                 
