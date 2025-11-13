@@ -1103,7 +1103,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 # cap the largest volumes at the 95th percentile to outliers in surface brightness map; minimal effect on total luminosity
                 volume_fraction[volume_fraction > np.nanpercentile(volume_fraction, 95)] = np.nanpercentile(volume_fraction, 95)
                 if pair_plasma:
-                    new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]]*m_p/(tracer[:,timePointer[j]]*m_p + (1 - tracer[:,timePointer[j]])*m_e)
+                    new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]]*(m_e + m_p)/(tracer[:,timePointer[j]]*(m_e + m_p) + (1 - tracer[:,timePointer[j]])*2*m_e)
                 else:
                     new_volume = volume_fraction*(4*np.pi/3.*lobe_lengths[0,i]*lobe_minor[i]**2)*tracer[:,timePointer[j]]
                 
