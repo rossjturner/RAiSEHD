@@ -16,7 +16,7 @@ pip install RAiSEHD
 
 ### Install from GitHub repository
 
-**Important: **the particle files must be downloaded individually as these are stored with GitHub LFS, or use pip install.
+Important: the particle files must be downloaded individually (i.e., not just cloning the reop) as these are stored with GitHub LFS, or use pip install.
 
 The package can be downloaded from the GitHub repository at https://github.com/rossjturner/RAiSEHD, or cloned with _git_ using:
 
