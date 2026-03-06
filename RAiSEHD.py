@@ -1143,7 +1143,10 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 
                 # TWO PHASE FLUID
                 # fraction of jet particles that have reached location in lobe
-                two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
+                if alpha_lambda[i] < 1e9:
+                    two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
+                else:
+                    two_phase_weighting = new_shock_time*0 + 1
                 if tActive/tFinal[i] >= 1:
                     # keep jet particles visible at all times
                     two_phase_weighting = np.maximum(two_phase_weighting, np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3)))) # assume sound speed is critical value for relativisitic particles
