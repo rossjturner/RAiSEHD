@@ -1093,7 +1093,8 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 # PRESSURES
                 new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match model at minor axis
                 # correct the hotspot/lobe pressure ratio based on the dynamical model
-                new_pressure = np.nan_to_num(new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
+                if shock_pressures[-1,i] > 0:
+                    new_pressure = np.nan_to_num(new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
                 # correct the evolutionary histories of the particles based on the dynamical model
                 alphaP_dyn = np.maximum(-2, np.minimum(0, alphaP_denv[i] + alphaP_hyd[:,timePointer[j]] - alphaP_henv[:,timePointer[j]]))
                 
@@ -1143,10 +1144,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 
                 # TWO PHASE FLUID
                 # fraction of jet particles that have reached location in lobe
-                if alpha_lambda[i] < 1e9:
-                    two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
-                else:
-                    two_phase_weighting = new_shock_time*0 + 1
+                two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
                 if tActive/tFinal[i] >= 1:
                     # keep jet particles visible at all times
                     two_phase_weighting = np.maximum(two_phase_weighting, np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3)))) # assume sound speed is critical value for relativisitic particles
