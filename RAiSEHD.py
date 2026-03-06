@@ -40,7 +40,7 @@ sigma_T = const.sigma_T.value # electron scattering cross-section
 nangles = 64 # number of angles to calculate expansion rate along (must be greater than 1)
 betaRegions = 64 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
-stepRatio = 1.02 # ratio to increase time/radius
+stepRatio = 1.01 # ratio to increase time/radius
 crit_age = 0.95 # fraction of source age for lower end of power law approximations
 lambda_min = 1e-256 # minimum value of Lambda for computational efficiency
 
@@ -1093,8 +1093,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 # PRESSURES
                 new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match model at minor axis
                 # correct the hotspot/lobe pressure ratio based on the dynamical model
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    new_pressure = np.nan_to_num(new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
+                new_pressure = np.nan_to_num(new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
                 # correct the evolutionary histories of the particles based on the dynamical model
                 alphaP_dyn = np.maximum(-2, np.minimum(0, alphaP_denv[i] + alphaP_hyd[:,timePointer[j]] - alphaP_henv[:,timePointer[j]]))
                 
@@ -1144,8 +1143,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 
                 # TWO PHASE FLUID
                 # fraction of jet particles that have reached location in lobe
-                with np.errstate(over='ignore', invalid='ignore'):
-                    two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
+                two_phase_weighting = np.maximum(0, np.minimum(1, lambda_crit[i]*(new_shock_time/np.minimum(tActive, tFinal[i]))**np.maximum(0, alpha_lambda[i])))
                 if tActive/tFinal[i] >= 1:
                     # keep jet particles visible at all times
                     two_phase_weighting = np.maximum(two_phase_weighting, np.minimum(1, np.abs(vx3[:,timePointer[j]]*np.sqrt(3)))) # assume sound speed is critical value for relativisitic particles
