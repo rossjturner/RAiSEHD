@@ -40,7 +40,7 @@ sigma_T = const.sigma_T.value # electron scattering cross-section
 nangles = 64 # number of angles to calculate expansion rate along (must be greater than 1)
 betaRegions = 64 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
-stepRatio = 1.01 # ratio to increase time/radius ## BETTER TIME STEPPING FOR THIS WORK
+stepRatio = 1.02 # ratio to increase time/radius
 crit_age = 0.95 # fraction of source age for lower end of power law approximations
 lambda_min = 1e-256 # minimum value of Lambda for computational efficiency
 
