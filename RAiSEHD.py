@@ -40,7 +40,7 @@ sigma_T = const.sigma_T.value # electron scattering cross-section
 nangles = 64 # number of angles to calculate expansion rate along (must be greater than 1)
 betaRegions = 64 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
-stepRatio = 1.02 # ratio to increase time/radius
+stepRatio = 1.01 # ratio to increase time/radius ## BETTER TIME STEPPING FOR THIS WORK
 crit_age = 0.95 # fraction of source age for lower end of power law approximations
 lambda_min = 1e-256 # minimum value of Lambda for computational efficiency
 
@@ -878,20 +878,20 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         for i in range(0, np.max(regionPointer[angles]) + 1):
             if i < np.max(regionPointer[angles]):
                 if np.abs(betas[i] - 2) > 1e-3:
-                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(np.minimum(regions[i+1], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]))*np.sin(theta)*dtheta)
-                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(np.minimum(regions[i+1], X[angles,1])**(2 - betas[i]) - np.minimum(regions[i], X[angles,1])**(2 - betas[i]))*np.sin(theta)*dtheta)
+                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(np.minimum(regions[i+1], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]))*np.sin(theta)*dtheta * np.cos(theta))
+                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(np.minimum(regions[i+1], X[angles,1])**(2 - betas[i]) - np.minimum(regions[i], X[angles,1])**(2 - betas[i]))*np.sin(theta)*dtheta * np.cos(theta))
                 else:
-                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(np.minimum(regions[i+1], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))/np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles])))*np.sin(theta)*dtheta)
-                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(np.minimum(regions[i+1], X[angles,1])/np.minimum(np.maximum(regions[i], regions[1]), X[angles,1]))*np.sin(theta)*dtheta)
+                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(np.minimum(regions[i+1], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))/np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles])))*np.sin(theta)*dtheta * np.cos(theta))
+                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(np.minimum(regions[i+1], X[angles,1])/np.minimum(np.maximum(regions[i], regions[1]), X[angles,1]))*np.sin(theta)*dtheta * np.cos(theta))
                 lobe_mass = lobe_mass + np.nansum(2*np.pi*kValues[i]/((3 - betas[i]))*(np.minimum(regions[i+1], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(3 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(3 - betas[i]))*np.sin(theta)*dtheta)
                 shock_mass = shock_mass + np.nansum(2*np.pi*kValues[i]/((3 - betas[i]))*(np.minimum(regions[i+1], X[angles,1])**(3 - betas[i]) - np.minimum(regions[i], X[angles,1])**(3 - betas[i]))*np.sin(theta)*dtheta)
             else:
                 if np.abs(betas[i] - 2) > 1e-3:
-                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*((X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]))*np.sin(theta)*dtheta)
-                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(X[angles,1]**(2 - betas[i]) - np.minimum(regions[i], X[angles,1])**(2 - betas[i]))*np.sin(theta)*dtheta)
+                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*((X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(2 - betas[i]))*np.sin(theta)*dtheta * np.cos(theta))
+                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]/(2 - betas[i])*(X[angles,1]**(2 - betas[i]) - np.minimum(regions[i], X[angles,1])**(2 - betas[i]))*np.sin(theta)*dtheta * np.cos(theta))
                 else:
-                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]*np.log((X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))/np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles])))*np.sin(theta)*dtheta)
-                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(X[angles,1]/np.minimum(np.maximum(regions[i], regions[1]), X[angles,1]))*np.sin(theta)*dtheta)
+                    lobe_buoyancy = lobe_buoyancy + np.nansum(kValues[i]*betas[i]*np.log((X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))/np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles])))*np.sin(theta)*dtheta * np.cos(theta))
+                    shock_buoyancy = shock_buoyancy + np.nansum(kValues[i]*betas[i]*np.log(X[angles,1]/np.minimum(np.maximum(regions[i], regions[1]), X[angles,1]))*np.sin(theta)*dtheta * np.cos(theta))
                 lobe_mass = lobe_mass + np.nansum(2*np.pi*kValues[i]/((3 - betas[i]))*((X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(3 - betas[i]) - np.minimum(regions[i], X[angles,1]*eta_c[angles]/(shockRadius*eta_s[angles]))**(3 - betas[i]))*np.sin(theta)*dtheta)
                 shock_mass = shock_mass + np.nansum(2*np.pi*kValues[i]/((3 - betas[i]))*(X[angles,1]**(3 - betas[i]) - np.minimum(regions[i], X[angles,1])**(3 - betas[i]))*np.sin(theta)*dtheta)
 
