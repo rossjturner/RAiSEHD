@@ -1,5 +1,5 @@
 # RAiSERHD module
-# Ross Turner, 6 Mar 2026
+# Ross Turner, 25 Jun 2026
 
 # import packages
 import h5py
@@ -26,6 +26,7 @@ OmegaM = 0.27 # fraction of matter in the flat universe
 OmegaD = 0.73 # fraction of dark energy in the flat universe
 freq_cmb = 5.879e10 # frequency of cosmic microwave background at z = 0
 temp_cmb = 2.725 # temperature of cosmic microwave background at z = 0
+cooling_rate = 1.43e-40 # cooling rate constant for 0.3 solar metallicity
 
 c_speed = const.c.value # speed of light
 kpc = const.kpc.value # kiloparsec
@@ -37,10 +38,10 @@ mu0 = const.mu0.value # vacuum permeability
 sigma_T = const.sigma_T.value # electron scattering cross-section
 
 # model parameters that can be optimised for efficiency
-nangles = 64 # number of angles to calculate expansion rate along (must be greater than 1)
-betaRegions = 64 # set maximum number of beta regions
+nangles = 256 #64 # number of angles to calculate expansion rate along (must be greater than 1)
+betaRegions = 256 #64 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
-stepRatio = 1.02 # ratio to increase time/radius
+stepRatio = 1.01 # ratio to increase time/radius ## BETTER TIME STEPPING FOR THIS WORK
 crit_age = 0.95 # fraction of source age for lower end of power law approximations
 lambda_min = 1e-256 # minimum value of Lambda for computational efficiency
 
@@ -110,7 +111,7 @@ class Colors:
 
 
 ## Define main function to run RAiSE HD
-def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, brightness=True, angle=0., pair_plasma=False, resolution='standard', seed=None, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, particle_data=False):
+def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5, equipartition=-1.5, spectral_index=0.7, gammaCValue=5./3, lorentz_min=Lorentzmin, brightness=True, angle=0., pair_plasma=False, resolution='standard', seed=None, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, gravity=False, particle_data=False, additional_outputs=False):
     
     # record start time of code
     if not (resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') or (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
@@ -129,8 +130,8 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
         time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio = __PLUTO_particles('RAiSE_particles.hdf5', nsamples=-1)
     elif not resolution == None:
         nsamples, npixels = __RAiSE_resolution(resolution)
-        lobe_angles = max(2, nangles//max(1, 64//npixels))
-        step_ratio = 1 + max(1, 64//npixels)*(stepRatio - 1) # npixels is a good proxy here
+        lobe_angles = nangles #max(2, nangles//max(1, 64//npixels))
+        step_ratio = stepRatio #1 + max(1, 64//npixels)*(stepRatio - 1) # npixels is a good proxy here
         if not isinstance(particle_data, (list, np.ndarray)) and (particle_data == None or particle_data == True or particle_data == False):
             time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio = __PLUTO_particles('RAiSE_particles.hdf5', nsamples=nsamples)
         else:
@@ -175,11 +176,11 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
                                     new_regions = regions
                                     
                                 # calculate dynamical evolution of lobe and shocked shell using RAiSE dynamics
-                                lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda = __RAiSE_environment(redshift[i], axis_ratio[j], jet_power[k], source_age, halo_mass=new_halo_mass, rand_profile=rand_profile, rho0Value=new_rho0Value, regions=new_regions, betas=new_betas, temperature=new_temperature, active_age=active_age[m], jet_lorentz=jet_lorentz[o], gammaCValue=gammaCValue, aj_star=aj_star, jet_angle=jet_angle, axis_exponent=axis_exponent, fill_factor=fill_factor, buoyancy=buoyancy, lobe_angles=lobe_angles, step_ratio=step_ratio)
+                                lobe_lengths, lobe_minor, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy, lambda_crit, alphaP_denv, alpha_lambda, ret_nregions, ret_betas, ret_regions, ret_kValues, ret_temperature = __RAiSE_environment(redshift[i], axis_ratio[j], jet_power[k], source_age, halo_mass=new_halo_mass, rand_profile=rand_profile, rho0Value=new_rho0Value, regions=new_regions, betas=new_betas, temperature=new_temperature, active_age=active_age[m], jet_lorentz=jet_lorentz[o], gammaCValue=gammaCValue, aj_star=aj_star, jet_angle=jet_angle, axis_exponent=axis_exponent, fill_factor=fill_factor, buoyancy=buoyancy, gravity=gravity, lobe_angles=lobe_angles, step_ratio=step_ratio)
                                 
                                 # calculate synchrotron emission from lobe using particles and RAiSE model
                                 if not resolution == None:
-                                    location, luminosity, magnetic_field = __RAiSE_emissivity(frequency, redshift[i], time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age[m], equipartition[n], spectral_index, gammaCValue=gammaCValue, lorentz_min=lorentz_min, angle=angle, pair_plasma=pair_plasma, resolution=resolution)
+                                    location, luminosity, magnetic_field = __RAiSE_emissivity(frequency, redshift[i], time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, lobe_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age[m], equipartition[n], spectral_index, gammaCValue=gammaCValue, lorentz_min=lorentz_min, angle=angle, pair_plasma=pair_plasma, resolution=resolution)
                                 
                                 # create pandas dataframe for integrated emission
                                 angles = np.arange(0, lobe_angles, 1).astype(np.int_)
@@ -244,18 +245,26 @@ def RAiSE_run(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass=
     # return particle data to user if running resolutions for a MCMC inversion
     if (resolution == None or resolution == '__1' or resolution == '__2' or resolution == '__4' or resolution == '__8' or resolution == '__16' or resolution == '__32' or resolution == '__64' or resolution == '__128' or resolution == '__512' or resolution == '__2048') and not (not isinstance(particle_data, (list, np.ndarray)) and particle_data == False):
         if brightness == True:
-            return df_list, dg_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
+            if additional_outputs == True:
+                return df_list, dg_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio], [ret_nregions, ret_betas, ret_regions, ret_kValues, ret_temperature, lobe_angles, lobe_lengths, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy]
+            else:
+                return df_list, dg_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
         else:
             if resolution == None:
-                return df_list, None
+                if additional_outputs == True:
+                    return df_list, None, [ret_nregions, ret_betas, ret_regions, ret_kValues, ret_temperature, lobe_angles, lobe_lengths, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy]
+                else:
+                    return df_list, None
             else:
-                return df_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
+                if additional_outputs == True:
+                    return df_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio], [ret_nregions, ret_betas, ret_regions, ret_kValues, ret_temperature, lobe_angles, lobe_lengths, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy]
+                else:
+                    return df_list, [time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio]
     else:
         # print total run time to screen
         print(__color_text('RAiSE completed running after {:.3f} seconds.'.format(ti.time() - start_time), Colors.Green))
     
 
-    
 # Define function to test type of inputs and convert type where appropriate
 def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_mass, betas, regions, rho0Value, temperature, active_age, equipartition, jet_lorentz):
 
@@ -314,7 +323,7 @@ def __test_inputs(frequency, redshift, axis_ratio, jet_power, source_age, halo_m
         jet_lorentz = [jet_lorentz]
     for i in range(0, len(jet_lorentz)):
         if not isinstance(jet_lorentz[i], (int, float)) or not (-100 <= jet_lorentz[i] and jet_lorentz[i] < 20):
-            raise Exception('Jet bulk lorentz factor factor must be provided as a float or list/array of floats.')
+            raise Exception('Jet bulk lorentz factor must be provided as a float or list/array of floats.')
         elif (-100 <= jet_lorentz[i] and jet_lorentz[i] <= 1):
             jet_lorentz[i] = 0
             warnings.warn('Jet phase will not be included in this simulation.', category=UserWarning)
@@ -414,7 +423,7 @@ def __set_seed(value):
 
 ## Define functions for analytic modelling of the environment
 # function to calculate properties of the environment and call RAiSE_evolution
-def __RAiSE_environment(redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., gammaCValue=5./3, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, lobe_angles=nangles, step_ratio=stepRatio):
+def __RAiSE_environment(redshift, axis_ratio, jet_power, source_age, halo_mass=None, rand_profile=False, betas=None, regions=None, rho0Value=None, temperature=None, active_age=10.14, jet_lorentz=5., gammaCValue=5./3, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, gravity=False, lobe_angles=nangles, step_ratio=stepRatio):
     
     # check minimal inputs
     if halo_mass == None and (not isinstance(betas, (list, np.ndarray)) or not isinstance(regions, (list, np.ndarray))):
@@ -476,7 +485,7 @@ def __RAiSE_environment(redshift, axis_ratio, jet_power, source_age, halo_mass=N
     kValues = __DensityParameter(nregions, k0Value, new_betas, new_regions)
     
     # call RadioSourceEvolution function to calculate Dt tracks
-    return __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, new_betas, new_regions, kValues, temperature, jet_lorentz, aj_star, jet_angle, axis_exponent, fill_factor, buoyancy=buoyancy, lobe_angles=lobe_angles, step_ratio=step_ratio)
+    return __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, new_betas, new_regions, kValues, temperature, jet_lorentz, aj_star, jet_angle, axis_exponent, fill_factor, buoyancy=buoyancy, gravity=gravity, lobe_angles=lobe_angles, step_ratio=step_ratio)
 
     
 # approximate the gas density profile of Vikhlinin 2006 by multiple density profiles with a simple beta dependence
@@ -617,7 +626,7 @@ def __dHalogasfracFunction(halo_mass, redshift):
 
 ## Define functions required for RAiSE dynamical evolution
 # function to calculate dynamical evolution of lobe and shocked shell
-def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, betas, regions, kValues, temperature, jet_lorentz, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, lobe_angles=nangles, step_ratio=stepRatio):
+def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, gammaCValue, nregions, betas, regions, kValues, temperature, jet_lorentz, aj_star=0.231, jet_angle=0.686, axis_exponent=0.343, fill_factor=0.549, buoyancy=False, gravity=False, lobe_angles=nangles, step_ratio=stepRatio):
     
     # convert jet power and source age to correct units
     QavgValue = 10**jet_power/2. # set the power of *each* jet; convert from log space
@@ -651,27 +660,27 @@ def __RAiSE_evolution(redshift, axis_ratio, jet_power, source_age, active_age, g
     if jet_lorentz > 1:
         # run code in strong-shock limit to calibrate initial velocity
         x_time = 10**10.14*year
-        _, _, _, _, _, _, _, critical_point_1 = __RAiSE_runge_kutta(QavgValue, np.array([x_time]), x_time, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=c_speed, strong_shock=True, lobe_angles=lobe_angles, step_ratio=2.) # the precesion is not critical as the solution is analytic; just needed to find initial solution
+        _, _, _, _, _, _, _, _, _, _, critical_point_1 = __RAiSE_runge_kutta(QavgValue, np.array([x_time]), x_time, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=c_speed, strong_shock=True, lobe_angles=lobe_angles, step_ratio=2.) # the precesion is not critical as the solution is analytic; just needed to find initial solution
 
         # run code for full RAiSE HD dynamical model
-        lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, critical_point_3 = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=c_speed*critical_point_1[2]/critical_point_1[3], buoyancy=buoyancy, lobe_angles=lobe_angles, step_ratio=step_ratio)
+        lobe_lengths, lobe_minor, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy, lambda_crit, alphaP_denv, alpha_lambda, critical_point_3 = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=c_speed*critical_point_1[2]/critical_point_1[3], buoyancy=buoyancy, gravity=gravity, lobe_angles=lobe_angles, step_ratio=step_ratio)
     else:
         # run code for RAiSE X dynamical model
-        lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, _ = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, buoyancy=buoyancy, lobe_angles=lobe_angles, step_ratio=step_ratio)
+        lobe_lengths, lobe_minor, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy, lambda_crit, alphaP_denv, alpha_lambda, _ = __RAiSE_runge_kutta(QavgValue, tFinal, tActive, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, buoyancy=buoyancy, gravity=gravity, lobe_angles=lobe_angles, step_ratio=step_ratio)
     
-    return lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda
+    return lobe_lengths, lobe_minor, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy, lambda_crit, alphaP_denv, alpha_lambda, nregions, betas, regions, kValues, temperature
     
 
 # function to apply Runge-Kutta method and extract values at requested time steps
 @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
-def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=0., strong_shock=False, buoyancy=False, lobe_angles=nangles, step_ratio=stepRatio):
+def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, eta_c, eta_s, zetaeta, dchi, nregions, betas, regions, kValues, temperature, gammaCValue, critical_velocity=0., strong_shock=False, buoyancy=False, gravity=False, lobe_angles=nangles, step_ratio=stepRatio):
 
     # instantiate variables
-    X, P = np.zeros((lobe_angles, 6)), np.zeros((lobe_angles, 4))
+    X, P = np.zeros((lobe_angles, 8)), np.zeros((lobe_angles, 4))
     critical_point = np.zeros(4)
     regionPointer = np.zeros(lobe_angles).astype(np.int_)
     lobe_minor, lambda_crit, alphaP_denv, alpha_lambda = np.zeros(len(source_age)), np.zeros(len(source_age)), np.zeros(len(source_age)), np.zeros(len(source_age))
-    lobe_lengths, shock_lengths, shock_pressures = np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age)))
+    lobe_lengths, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy = np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age))), np.zeros((lobe_angles, len(source_age)))
     
     # calculate injection ages to derive time-average power-law indices for external pressure and filling factor
     inject_age = np.zeros(2*len(source_age))
@@ -721,7 +730,9 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
                 X[0,3], X[angles[1:],3] = 100, 100*eta_s[angles[1:]]
             X[angles,4] = -1 # null value
             X[angles,5] = -1 # null value
-            
+            X[angles,6] = 0
+            X[angles,7] = 0
+
             # set region pointer to first (non-zero) region if smaller than FR2 radius
             index = regions[1] < X[angles,1]
             regionPointer[index] = 1
@@ -758,7 +769,7 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
 
                 # update estimates of time, radius and velocity
                 if X[0,1] > 0:
-                    __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy)
+                    __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity)
                 else:
                     X[:,0] = X[:,0] + step
                     X[:,1] = -1e64
@@ -784,8 +795,11 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
 
         # calculate the lobe and shocked shell length, shock pressure and total pressure as a function of angle
         lobe_lengths[angles,timePointer] = np.nan_to_num(X[angles,5], nan=0)
+        lobe_pressures[angles,timePointer] = P[angles,1]
         shock_lengths[angles,timePointer] = np.nan_to_num(X[angles,1], nan=0)
-        shock_pressures[angles,timePointer] = P[angles,1]
+        shock_pressures[angles,timePointer] = P[angles,0]
+        shock_masses[angles,timePointer] = np.nan_to_num(X[angles,6], nan=0)
+        gravity_energy[angles,timePointer] = np.nan_to_num(X[angles,7], nan=0)
         lambda_crit[timePointer] = P[0,3]
         
         # calculate lobe minor axis (associated with dimensions of shocked shell) at this time step
@@ -805,33 +819,33 @@ def __RAiSE_runge_kutta(QavgValue, source_age, active_age, axis_ratio, aj_star, 
         else:
             alpha_lambda[timePointer] = np.nan_to_num(np.log(inject_lambdas[2*timePointer + 1]/inject_lambdas[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]) + np.log(inject_axis_ratios[2*timePointer + 1]/inject_axis_ratios[2*timePointer])/np.log(inject_age[2*timePointer + 1]/inject_age[2*timePointer]), nan=0) # filling factor and changing volume/axis ratio
 
-    return lobe_lengths, lobe_minor, shock_lengths, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, critical_point
+    return lobe_lengths, lobe_minor, lobe_pressures, shock_lengths, shock_pressures, shock_masses, gravity_energy, lambda_crit, alphaP_denv, alpha_lambda, critical_point
 
 
 # Runge-Kutta method to solve ODE in dynamical model
 @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
-def __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy):
+def __rk4sys(step, X, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity):
     
     # instantiate variables
-    Y, K1, K2, K3, K4 = np.zeros((len(angles), 6)), np.zeros((len(angles), 6)), np.zeros((len(angles), 6)), np.zeros((len(angles), 6)), np.zeros((len(angles), 6))
+    Y, K1, K2, K3, K4 = np.zeros((len(angles), 8)), np.zeros((len(angles), 8)), np.zeros((len(angles), 8)), np.zeros((len(angles), 8)), np.zeros((len(angles), 8))
     
     # fouth order Runge-Kutta method
-    __xpsys(X, K1, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy)
+    __xpsys(X, K1, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity)
     Y[:,:] = X[:,:] + 0.5*step*K1[:,:]
-    __xpsys(Y, K2, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy)
+    __xpsys(Y, K2, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity)
     Y[:,:] = X[:,:] + 0.5*step*K2[:,:]
-    __xpsys(Y, K3, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy)
+    __xpsys(Y, K3, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity)
     Y[:,:] = X[:,:] + step*K3[:,:]
-    __xpsys(Y, K4, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy)
+    __xpsys(Y, K4, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity)
     X[:,:] = X[:,:] + (step/6.)*(K1[:,:] + 2*K2[:,:] + 2*K3[:,:] + K4[:,:])
 
 
 # coupled second order differential equations for lobe evolution
 @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
-def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy):
+def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor, jet_lorentz, open_angle, angles, injectFrac, eta_c, eta_s, zetaeta, dchi, regionPointer, betas, regions, kValues, temperature, gammaCValue, critical_velocity, strong_shock, buoyancy, gravity):
     
-    # Differential equations for X[0,1,2,3,4,5] = (time, radius, velocity, lorentz_factor, thermal_velocity, lobe_radius)
-    # Additional variable for P[0,1,2,3] = (..., lobe_pressure, external_pressure, lambda_crit)
+    # Differential equations for X[0,1,2,3,4,5,6,7] = (time, radius, velocity, lorentz_factor, thermal_velocity, lobe_radius, shock_mass, gravity_energy)
+    # Additional variable for P[0,1,2,3] = (shock_pressure, lobe_pressure, external_pressure, lambda_crit)
     f[angles,0] = 1.
     f[angles,1] = X[angles,2]
     
@@ -905,9 +919,16 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
     if jet_lorentz > 1 and strong_shock == True:
         f[angles,2] = np.minimum((gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(2*X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)), (betas[regionPointer[angles]] - 2)/(5 - betas[regionPointer[angles]]) * X[angles,2]*X[angles,3]/(X[0,0] + year)) # ensure model doesn't run slower than limit due to numerics
     elif jet_lorentz > 1:
-        f[angles,2] = (gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(2*X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)) - (3*gammaCValue - betas[regionPointer[angles]])*(k_B*temperature/maverage)/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*(X[angles,3]*zetaeta[angles])**2) + a_buoyancy*np.cos(theta)
+        if gravity == True:
+            Delta = 3*betas[regionPointer[angles]]*(gammaCValue - 1)*np.log(X[angles,1]/X[angles,5])/(3*gammaCValue - betas[regionPointer[angles]]) * ((3 - betas[regionPointer[angles]])*X[angles,1]**(betas[regionPointer[angles]] - 3)*X[angles,6]/(kValues[regionPointer[angles]]*(1 - (X[angles,1]/X[angles,5])**(betas[regionPointer[angles]] - 3))) - 1) - 3/(3*gammaCValue - betas[regionPointer[angles]])
+            #Delta = 3*betas[regionPointer[angles]]*(gammaCValue - 1)*np.log(X[angles,1]/X[angles,5])/(3*gammaCValue - betas[regionPointer[angles]]) * ((3 - betas[regionPointer[angles]])*X[angles,1]**(betas[regionPointer[angles]] - 3)*X[angles,6]/(kValues[regionPointer[angles]]*(1 - (X[angles,1]/X[angles,5])**(betas[regionPointer[angles]] - 3))) - 1) - 3/(3*gammaCValue - betas[regionPointer[angles]]) + 9*(gammaCValue - 1)*cooling_rate*kValues[regionPointer[angles]]*X[angles,1]**(1 - betas[regionPointer[angles]])*(1 - (X[angles,1]/X[angles,5])**(3*(betas[regionPointer[angles]]/2 - 1)))/(8*(2 - betas[regionPointer[angles]])*(3*gammaCValue - betas[regionPointer[angles]])*X[angles,2]*(k_B*temperature/maverage)) * (((3 - betas[regionPointer[angles]])*X[angles,1]**(betas[regionPointer[angles]] - 3)*X[angles,6]/(kValues[regionPointer[angles]]*(1 - (X[angles,1]/X[angles,5])**(betas[regionPointer[angles]] - 3))))**3*maverage/(k_B*m_p**4))**(1/2.) * (zetaeta[angles]**2*(X[angles,2]*X[angles,3])**2*np.maximum(0, np.sign(X[angles,1])) + (k_B*temperature/maverage))**(1/2.)
+        else:
+            Delta = 0*X[angles,0]
+        f[angles,2] = (gammaCValue - 1)*injectFrac[angles]*(QavgValue*active_jet)*X[angles,1]**(betas[regionPointer[angles]] - 3)/(2*X[angles,2]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*dchi[angles]*(X[angles,3]*zetaeta[angles])**2*kValues[regionPointer[angles]]) + (betas[regionPointer[angles]] - 3*gammaCValue)*(X[angles,2])**2/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)) - (3*gammaCValue - betas[regionPointer[angles]])*(k_B*temperature/maverage)/(2*X[angles,1]*(1 + (X[angles,3]*X[angles,2]/c_speed)**2)*(X[angles,3]*zetaeta[angles])**2)*(1 + Delta) + a_buoyancy*np.cos(theta)
     else:
         # non-relativistic solution
+        if gravity == True:
+            raise Exception('Gravity not supported in non-relativistic solution.')
         sub_angles = (X[angles,2]*X[angles,3]*zetaeta)**2/(gammaX*(k_B*temperature/maverage)) <= 1
         super_angles = np.logical_not(sub_angles)
         f[super_angles,2] = (gammaX + 1)*(gammaCValue - 1)*injectFrac[super_angles]*(QavgValue*active_jet)*X[super_angles,1]**(betas[regionPointer[super_angles]] - 3)/(4*X[super_angles,2]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*dchi[super_angles]*(X[super_angles,3]*zetaeta[super_angles])**2*kValues[regionPointer[super_angles]]) + (betas[regionPointer[super_angles]] - 3*gammaCValue)*(X[super_angles,2])**2/(2*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)) + (gammaX - 1)*(3*gammaCValue - betas[regionPointer[super_angles]])*(k_B*temperature/maverage)/(4*X[super_angles,1]*(1 + (X[super_angles,3]*X[super_angles,2]/c_speed)**2)*(X[super_angles,3]*zetaeta[super_angles])**2) + a_buoyancy*np.cos(theta[super_angles])
@@ -925,7 +946,12 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
    
     # calculate Lorentz factor of two-phase fluid
     f[angles,3] = X[angles,3]**3*X[angles,2]*f[angles,2]/c_speed**2
-   
+    
+    # calculate mass of shocked shell
+    f[angles,6] = kValues[regionPointer[angles]]*X[angles,1]**(2 - betas[regionPointer[angles]])*X[angles,2]
+    # calculate the change in gravitational potential energy
+    f[angles,7] = np.nan_to_num(kValues[regionPointer[angles]]*betas[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(2 - betas[regionPointer[angles]])*X[angles,2]*(1 - (3 - betas[regionPointer[angles]])*X[angles,1]**(betas[regionPointer[angles]] - 3)*X[angles,6]/(kValues[regionPointer[angles]]*(1 - (X[angles,1]/X[angles,5])**(betas[regionPointer[angles]] - 3))))*np.log(X[angles,1]/X[angles,5])*3*dchi[angles], 0)
+       
     # PRESSURES
     # external pressure at each volume element
     P[angles,2] = kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]])
@@ -943,8 +969,11 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
     # jet/lobe pressure at each volume element
     volume = np.nan_to_num(np.maximum(0, X[angles,1])**3*dchi[angles], nan=0) # handle any volume elements than have become pinched
     if jet_lorentz > 1:
+        # calculate shocked shell pressure
+        P[angles,0] = np.nan_to_num(zetaeta[angles]**2*kValues[regionPointer[angles]]*X[angles,1]**(-betas[regionPointer[angles]])*(X[angles,2]*X[angles,3])**2*np.maximum(0, np.sign(X[angles,1])) + kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]]), nan=0)
+
         # calculate lobe pressure
-        P[angles,1] = np.nan_to_num(zetaeta[angles]**2*kValues[regionPointer[angles]]*X[angles,1]**(-betas[regionPointer[angles]])*(np.minimum(X[angles,2], X[angles,4]))**2*np.maximum(0, np.sign(X[angles,1])) + kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]]), nan=0)
+        P[angles,1] = np.nan_to_num(zetaeta[angles]**2*kValues[regionPointer[angles]]*X[angles,1]**(-betas[regionPointer[angles]])*(np.minimum(X[angles,2]*X[angles,3], X[angles,4]))**2*np.maximum(0, np.sign(X[angles,1])) + kValues[regionPointer[angles]]*(k_B*temperature/maverage)*X[angles,1]**(-betas[regionPointer[angles]]), nan=0)
         
         # calculate average pressure across jet/lobe
         pressure = np.sum(P[angles,1]*volume)/np.sum(volume + 1e-256)
@@ -954,6 +983,7 @@ def __xpsys(X, f, P, QavgValue, active_age, aj_star, axis_exponent, fill_factor,
         # calculate lobe pressure
         P[super_angles,1] = np.nan_to_num(2./(gammaX + 1)*zetaeta[super_angles]**2*kValues[regionPointer[super_angles]]*X[super_angles,1]**(-betas[regionPointer[super_angles]])*(X[super_angles,2]*X[super_angles,3])**2*np.maximum(0, np.sign(X[super_angles,1])) - (gammaX - 1)/(gammaX + 1)*kValues[regionPointer[super_angles]]*(k_B*temperature/maverage)*X[super_angles,1]**(-betas[regionPointer[super_angles]]), nan=0)
         P[sub_angles,1] = P[sub_angles,2]
+        P[angles,0] = P[angles,1] # shocked shell
         
         # calculate average pressure across jet/lobe
         pressure = np.sum(P[angles,1]*volume)/np.sum(volume + 1e-256)
@@ -1032,7 +1062,7 @@ def __PLUTO_particles(particle_data_path, nsamples=-1):
 
 ## Define functions to add emissivity from particles in hydrodynamical simulations on top of dynamics
 # function to manage orientation and distribution of particles from simulation output
-def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age, equipartition, spectral_index, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., pair_plasma=False,resolution='standard'):
+def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, source_age, lobe_lengths, lobe_minor, lobe_pressures, lambda_crit, alphaP_denv, alpha_lambda, active_age, equipartition, spectral_index, gammaCValue=5./3, lorentz_min=Lorentzmin, angle=0., pair_plasma=False,resolution='standard'):
     
     # determine spatial resolution of particles; i.e. overdensity of particles to include in calculations
     nsamples, npixels = __RAiSE_resolution(resolution)
@@ -1066,12 +1096,12 @@ def __RAiSE_emissivity(frequency, redshift, time, shock_time, major, minor, x1, 
     Ks = __RAiSE_Ks(s_index, gammaCValue, lorentz_min)
     blackbody = __RAiSE_blackbody(s_index)
 
-    return __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, viewing_angle, pair_plasma)
+    return __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, lobe_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, viewing_angle, pair_plasma)
 
 
 # function to calculate emissivity from each particle using RAiSE model
 @jit(nopython=True, parallel=True) # Set "nopython" mode for best performance, equivalent to @njit
-def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, shock_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, angle, pair_plasma):
+def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, time, shock_time, major, minor, x1, x2, x3, tracer, vx3, volume, pressure, press_minor, alphaP_hyd, alphaP_henv, hotspot_ratio, tFinal, lobe_lengths, lobe_minor, lobe_pressures, lambda_crit, alphaP_denv, alpha_lambda, tActive, equi_factor, s_index, gammaCValue, lorentz_min, Ks, blackbody, angle, pair_plasma):
     
     # instantiate variables
     luminosity = np.zeros((len(tFinal), len(timePointer)*len(pressure[:,0]), len(rest_frequency)))
@@ -1091,10 +1121,10 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 new_shock_time = (np.minimum(shock_time[:,timePointer[j]] + shock_hotspot_time, time[timePointer[j]]))*(tFinal[i]/time[timePointer[j]])*np.minimum(1., (tActive/tFinal[i])) # scale the last acceleration time to active age if source is a remnant
                 
                 # PRESSURES
-                new_pressure = pressure[:,timePointer[j]]*(shock_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match model at minor axis
+                new_pressure = pressure[:,timePointer[j]]*(lobe_pressures[-1,i]/press_minor[timePointer[j]]) # correction factor to match model at minor axis
                 # correct the hotspot/lobe pressure ratio based on the dynamical model
-                if shock_pressures[-1,i] > 0:
-                    new_pressure = np.nan_to_num(new_pressure*((shock_pressures[0,i]/shock_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
+                if lobe_pressures[-1,i] > 0:
+                    new_pressure = np.nan_to_num(new_pressure*((lobe_pressures[0,i]/lobe_pressures[-1,i])/hotspot_ratio[timePointer[j]] - 1)*(np.abs(x3[:,timePointer[j]])/major[timePointer[j]]), 0) + new_pressure # increase log-space pressure linearly along lobe
                 # correct the evolutionary histories of the particles based on the dynamical model
                 alphaP_dyn = np.maximum(-2, np.minimum(0, alphaP_denv[i] + alphaP_hyd[:,timePointer[j]] - alphaP_henv[:,timePointer[j]]))
                 
