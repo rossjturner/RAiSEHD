@@ -1,5 +1,5 @@
 # RAiSERHD module
-# Ross Turner, 25 Jun 2026
+# Ross Turner, 6 Mar 2026
 
 # import packages
 import h5py
@@ -38,10 +38,10 @@ mu0 = const.mu0.value # vacuum permeability
 sigma_T = const.sigma_T.value # electron scattering cross-section
 
 # model parameters that can be optimised for efficiency
-nangles = 256 #64 # number of angles to calculate expansion rate along (must be greater than 1)
-betaRegions = 256 #64 # set maximum number of beta regions
+nangles = 16 #64/256 # number of angles to calculate expansion rate along (must be greater than 1)
+betaRegions = 64 #64/256 # set maximum number of beta regions
 limTime = (year) # the FR-II limit must be used before this time
-stepRatio = 1.01 # ratio to increase time/radius ## BETTER TIME STEPPING FOR THIS WORK
+stepRatio = 1.02 #1.02/1.01 ratio to increase time/radius ## BETTER TIME STEPPING FOR THIS WORK
 crit_age = 0.95 # fraction of source age for lower end of power law approximations
 lambda_min = 1e-256 # minimum value of Lambda for computational efficiency
 
@@ -1161,7 +1161,7 @@ def __RAiSE_particles(timePointer, rest_frequency, inverse_compton, redshift, ti
                 
                 # LOBE PARTICLES
                 # find angle and radius of each particle from core
-                new_angles = np.arctan((np.sqrt(new_x1**2 + new_x2**2)*lobe_minor[i]/minor[timePointer[j]])/(x3[:,timePointer[j]]*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
+                new_angles = np.arctan((np.sqrt(new_x1**2 + new_x2**2)*lobe_minor[i]/minor[timePointer[j]])/(np.abs(x3[:,timePointer[j]])*lobe_lengths[0,i]/major[timePointer[j]])) # rescale axes to correct axis ratio
                 new_radii = np.sqrt((new_x1**2 + new_x2**2)*((lobe_minor[i]/kpc)/minor[timePointer[j]])**2 + (x3[:,timePointer[j]]*(lobe_lengths[0,i]/kpc)/major[timePointer[j]])**2)
                 # find particles within lobe region; particles outside this region will not emit. Particle map is set to axis ratio based on shocked shell to maintain geometry of jet
                 angles = np.arange(0, len(lobe_lengths[:,i]), 1).astype(np.int_)
@@ -1321,7 +1321,10 @@ def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, lum
         for j in range(0, len(rest_frequency)):
             # separate location array into components
             index = np.logical_and(np.logical_and(np.logical_not(np.isnan(luminosity[i,:,j])), np.logical_not(np.isinf(luminosity[i,:,j]))), np.logical_not(np.isnan(sim_x)))
-            location_x = np.sin(angle)*sim_y[index] + np.cos(angle)*sim_z[index]
+            if np.abs(angle) < 0.01:
+                location_x = sim_z[index]
+            else:
+                location_x = np.sin(angle)*sim_y[index] + np.cos(angle)*sim_z[index]
             location_y = sim_x[index]
             new_luminosity = luminosity[i,:,j]
             new_luminosity = new_luminosity[index]
@@ -1330,13 +1333,13 @@ def __RAiSE_pixels(rest_frequency, redshift, tFinal, lobe_lengths, location, lum
                 # discretise particles
                 location_x = np.floor(location_x/lobe_lengths[0,i]*(npixels//2)).astype(np.int_)
                 location_y = np.floor(location_y/lobe_lengths[0,i]*(npixels//2)).astype(np.int_)
-                min_x, min_y = np.min(location_x), np.min(location_y)
+                min_x, min_y = np.min([location_x, -location_x]), np.min([location_y, -location_y])
                 location_x = location_x - min_x
                 location_y = location_y - min_y
                 
                 # instantiate variables to store discrete particles
-                x_values = np.arange(np.min(location_x), np.max(location_x) + 0.1, 1).astype(np.int_)
-                y_values = np.arange(np.min(location_y), np.max(location_y) + 0.1, 1).astype(np.int_)
+                x_values = np.arange(0, -2*min_x, 1).astype(np.int_)
+                y_values = np.arange(0, -2*min_y, 1).astype(np.int_)
                 brightness = np.zeros((len(x_values), len(y_values)))
                 
                 # add luminosity from each particle to correct pixel
